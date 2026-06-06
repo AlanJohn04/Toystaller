@@ -6,18 +6,29 @@
 (function () {
     'use strict';
 
+    // High-priority JSON keys Instagram uses for video URLs
+    const VIDEO_KEYS = new Set(['video_url', 'playback_url', 'src', 'url', 'dash_manifest']);
+
     // Helper: recursively search an object for any value that looks like a video CDN URL
     function findVideoUrls(obj, found = new Set(), depth = 0) {
-        if (depth > 10 || !obj || typeof obj !== 'object') return found;
+        if (depth > 12 || !obj || typeof obj !== 'object') return found;
         for (const key of Object.keys(obj)) {
             const val = obj[key];
             if (typeof val === 'string') {
-                // Look for typical Instagram/Facebook video CDN URLs
-                if (
-                    (val.includes('video') || val.includes('.mp4') || val.includes('.m4v')) &&
-                    (val.startsWith('https://') || val.startsWith('http://')) &&
-                    !val.includes('blob:')
-                ) {
+                const isHttp = val.startsWith('https://') || val.startsWith('http://');
+                if (!isHttp || val.includes('blob:')) continue;
+
+                const lower = val.toLowerCase();
+                // Accept if: it's a known video key, or the URL path/domain suggests video
+                const looksLikeVideo =
+                    VIDEO_KEYS.has(key) ||
+                    lower.includes('.mp4') ||
+                    lower.includes('.m4v') ||
+                    lower.includes('.webm') ||
+                    (lower.includes('fbcdn.net') && lower.includes('video')) ||
+                    (lower.includes('cdninstagram.com') && lower.includes('video'));
+
+                if (looksLikeVideo) {
                     found.add(val);
                 }
             } else if (typeof val === 'object') {
