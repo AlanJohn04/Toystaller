@@ -49,14 +49,7 @@ function injectDownloadButtons() {
                 transition: background 0.2s;
             `;
 
-            // Create the download button
-            const dlBtn = document.createElement('button');
-            dlBtn.className = 'magic-dl-btn';
-            dlBtn.title = 'Download';
-            dlBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
-            dlBtn.style.cssText = btnStyles;
-            dlBtn.onmouseover = () => dlBtn.style.backgroundColor = 'rgba(231, 76, 60, 0.9)';
-            dlBtn.onmouseout = () => dlBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            const isVideo = media.tagName.toLowerCase() === 'video';
 
             // Create the open button
             const openBtn = document.createElement('button');
@@ -66,6 +59,18 @@ function injectDownloadButtons() {
             openBtn.style.cssText = btnStyles;
             openBtn.onmouseover = () => openBtn.style.backgroundColor = 'rgba(52, 152, 219, 0.9)';
             openBtn.onmouseout = () => openBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+
+            // Create the download button ONLY for images
+            let dlBtn = null;
+            if (!isVideo) {
+                dlBtn = document.createElement('button');
+                dlBtn.className = 'magic-dl-btn';
+                dlBtn.title = 'Download';
+                dlBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+                dlBtn.style.cssText = btnStyles;
+                dlBtn.onmouseover = () => dlBtn.style.backgroundColor = 'rgba(231, 76, 60, 0.9)';
+                dlBtn.onmouseout = () => dlBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            }
 
             // Ensure the parent container can hold absolute positioned elements
             if (window.getComputedStyle(media.parentElement).position === 'static') {
@@ -84,7 +89,7 @@ function injectDownloadButtons() {
                 let directSrc = media.src;
                 
                 // If it's a video and src is missing or a blob, check <source> tags
-                if ((!directSrc || directSrc.startsWith('blob:') || directSrc.startsWith('data:')) && media.tagName.toLowerCase() === 'video') {
+                if ((!directSrc || directSrc.startsWith('blob:') || directSrc.startsWith('data:')) && isVideo) {
                     const sourceTag = media.querySelector('source');
                     if (sourceTag && sourceTag.src && !sourceTag.src.startsWith('blob:') && !sourceTag.src.startsWith('data:')) {
                         directSrc = sourceTag.src;
@@ -94,7 +99,7 @@ function injectDownloadButtons() {
                 if (directSrc && !directSrc.startsWith('blob:') && !directSrc.startsWith('data:')) {
                     callback(directSrc);
                 } else {
-                    const mediaType = media.tagName.toLowerCase(); // 'video' or 'img'
+                    const mediaType = isVideo ? 'video' : 'img';
                     chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
                         if (response && response.urls && response.urls.length > 0) {
                             callback(response.urls[response.urls.length - 1]);
@@ -105,23 +110,29 @@ function injectDownloadButtons() {
                 }
             };
 
-            // Handle the click event for download
-            dlBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation(); // Prevent clicking the media underneath
-                getMediaUrl((url) => triggerDownload(url));
-            });
+            // Handle the click event for download (only if it exists)
+            if (dlBtn) {
+                dlBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // Prevent clicking the media underneath
+                    getMediaUrl((url) => triggerDownload(url));
+                });
+            }
 
             // Handle the click event for open in new tab
             openBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation(); // Prevent clicking the media underneath
-                getMediaUrl((url) => window.open(url, '_blank'));
+                getMediaUrl((url) => {
+                    chrome.runtime.sendMessage({ action: 'openInNewTab', url: url });
+                });
             });
 
             // Add the buttons to the container and the container to the media's parent
             container.appendChild(openBtn);
-            container.appendChild(dlBtn);
+            if (dlBtn) {
+                container.appendChild(dlBtn);
+            }
             media.parentElement.appendChild(container);
         }
     });

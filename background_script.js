@@ -3,7 +3,7 @@
 
 const interceptedMedia = {};
 
-const mediaExtensions = ['.mp4', '.m3u8', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv'];
+const mediaExtensions = ['.mp4', '.m3u8', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v', '.m4a'];
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
 
 // Intercept network requests
@@ -13,7 +13,10 @@ chrome.webRequest.onResponseStarted.addListener(
         if (tabId < 0) return;
 
         const lowerUrl = url.toLowerCase();
-        const isVideo = type === 'media' || mediaExtensions.some(ext => lowerUrl.includes(ext));
+        const isVideo = type === 'media' || 
+                        mediaExtensions.some(ext => lowerUrl.includes(ext)) ||
+                        lowerUrl.includes('mime=video') ||
+                        lowerUrl.includes('/video/');
         const isImage = type === 'image' || imageExtensions.some(ext => lowerUrl.includes(ext));
 
         if (isVideo || isImage) {
@@ -52,6 +55,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
         });
         return true; // Keep message channel open for async response
+    } else if (request.action === 'openInNewTab') {
+        chrome.tabs.create({ url: request.url });
+        sendResponse({ success: true });
     }
 });
 
