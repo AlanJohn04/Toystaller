@@ -32,7 +32,7 @@ function injectDownloadButtons() {
                 z-index: 2147483647;
                 display: flex;
                 gap: 6px;
-                opacity: 0;
+                opacity: 0.5;
                 transition: opacity 0.2s ease-in-out;
             `;
 
@@ -72,12 +72,12 @@ function injectDownloadButtons() {
                 media.parentElement.style.position = 'relative';
             }
 
-            // Hover logic to show/hide container
-            media.parentElement.addEventListener('mouseenter', () => {
+            // Hover logic to show container fully when hovered
+            container.addEventListener('mouseenter', () => {
                 container.style.opacity = '1';
             });
-            media.parentElement.addEventListener('mouseleave', () => {
-                container.style.opacity = '0';
+            container.addEventListener('mouseleave', () => {
+                container.style.opacity = '0.5';
             });
 
             const getMediaUrl = (callback) => {
