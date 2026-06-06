@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Toystaller",
+  "version": "1.0",
+  "description": "Automatically extracts high-quality media URLs and adds a download button to videos and images.",
+  "icons": {
+    "16": "Toystaller_logo.png",
+    "48": "Toystaller_logo.png",
+    "128": "Toystaller_logo.png"
+  },
+  "permissions": [
+    "webRequest",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background_script.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Toystaller Downloader",
+    "default_icon": "Toystaller_logo.png"
+  }
+}
