@@ -74,6 +74,10 @@ function injectDownloadButtons() {
         if (window.magicOverlayManager && !window.magicOverlayManager.overlays.has(media)) {
 
             const isVideo = media.tagName.toLowerCase() === 'video';
+            const magicId = Math.random().toString(36).substring(2, 15);
+            if (isVideo) {
+                media.dataset.magicId = magicId;
+            }
 
             const createButtonsFn = () => {
                 const buttons = [];
@@ -149,43 +153,86 @@ function injectDownloadButtons() {
             };
 
             // ─── getMediaUrl: multi-strategy URL resolution ──────────────────
-            const getMediaUrl = (callback) => {
+            const getMediaUrl = async (callback) => {
+                
+                // STRATEGY 1: React Fiber Extractor (100% accurate for current video)
+                if (isVideo) {
+                    try {
+                        const reactUrl = await new Promise((resolve) => {
+                            const handler = (e) => {
+                                window.removeEventListener('magic_response_react_url_' + magicId, handler);
+                                resolve(e.detail.url);
+                            };
+                            window.addEventListener('magic_response_react_url_' + magicId, handler);
+                            window.dispatchEvent(new CustomEvent('magic_get_react_url', { detail: { id: magicId } }));
+                            
+                            // Timeout after 300ms
+                            setTimeout(() => {
+                                window.removeEventListener('magic_response_react_url_' + magicId, handler);
+                                resolve(null);
+                            }, 300);
+                        });
 
-                // STRATEGY D (Promoted): URLs intercepted by the page_interceptor
-                // Instagram often includes the pristine, full MP4 in their GraphQL response.
-                // This is better than `video.currentSrc` which is often a tiny DASH chunk.
-                if (isVideo && pageInterceptedVideoUrls.size > 0) {
-                    const best = pickBestVideoUrl(Array.from(pageInterceptedVideoUrls));
-                    if (best && !best.includes('bytestart')) {
-                        console.log('[Toystaller] Strategy D (page interceptor):', best);
-                        callback(best);
-                        return;
+                        if (reactUrl) {
+                            console.log('[Toystaller] Strategy 1 (React Extractor):', reactUrl);
+                            callback(reactUrl);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+
+                // Helper to get filename from URL
+                const getFilename = (urlStr) => {
+                    try {
+                        const parts = new URL(urlStr).pathname.split('/');
+                        const name = parts.pop();
+                        return (name && name.length > 5) ? name : null;
+                    } catch (e) { return null; }
+                };
+
+                const currentFilename = getFilename(media.currentSrc || media.src);
+
+                // STRATEGY 2: Global intercepted URLs (Filtered by filename)
+                if (isVideo && pageInterceptedVideoUrls.size > 0 && currentFilename) {
+                    // Only consider intercepted URLs that share the same filename as the DASH chunk
+                    const matches = Array.from(pageInterceptedVideoUrls).filter(u => {
+                        const interceptedName = getFilename(u);
+                        return interceptedName && interceptedName === currentFilename && !u.includes('bytestart');
+                    });
+                    
+                    if (matches.length > 0) {
+                        const best = pickBestVideoUrl(matches);
+                        if (best) {
+                            console.log('[Toystaller] Strategy 2 (Global Pool Match):', best);
+                            callback(best);
+                            return;
+                        }
                     }
                 }
 
-                // STRATEGY A: video.currentSrc — the raw URL the browser chose.
+                // STRATEGY 3: video.currentSrc — the raw URL the browser chose.
                 if (isVideo && media.currentSrc &&
                     !media.currentSrc.startsWith('blob:') &&
                     !media.currentSrc.startsWith('data:')) {
-                    console.log('[Toystaller] Strategy A (currentSrc):', media.currentSrc);
+                    console.log('[Toystaller] Strategy 3 (currentSrc):', media.currentSrc);
                     callback(media.currentSrc);
                     return;
                 }
 
-                // STRATEGY B: video.src or img.src (standard direct link)
+                // STRATEGY 4: video.src or img.src (standard direct link)
                 if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:')) {
-                    console.log('[Toystaller] Strategy B (src):', media.src);
+                    console.log('[Toystaller] Strategy 4 (src):', media.src);
                     callback(media.src);
                     return;
                 }
 
-                // STRATEGY C: <source> child tags
+                // STRATEGY 5: <source> child tags
                 if (isVideo) {
                     const sourceTag = media.querySelector('source');
                     if (sourceTag && sourceTag.src &&
                         !sourceTag.src.startsWith('blob:') &&
                         !sourceTag.src.startsWith('data:')) {
-                        console.log('[Toystaller] Strategy C (source tag):', sourceTag.src);
+                        console.log('[Toystaller] Strategy 5 (source tag):', sourceTag.src);
                         callback(sourceTag.src);
                         return;
                     }

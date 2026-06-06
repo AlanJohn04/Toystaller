@@ -26,12 +26,36 @@ class OverlayManager {
             display: flex;
             gap: 6px;
             pointer-events: none;
-            transition: opacity 0.2s;
+            opacity: 0;
+            transition: opacity 0.2s ease;
         `;
 
         // Add buttons
         const buttons = createButtonsFn();
         buttons.forEach(btn => container.appendChild(btn));
+
+        // Visibility toggling logic
+        let hoverTimeout;
+        const show = () => {
+            clearTimeout(hoverTimeout);
+            container.style.opacity = '1';
+        };
+        const hide = () => {
+            hoverTimeout = setTimeout(() => {
+                container.style.opacity = '0';
+            }, 150);
+        };
+
+        // Trigger visibility on the media element
+        media.addEventListener('mouseenter', show);
+        media.addEventListener('mouseleave', hide);
+
+        // Also trigger visibility when hovering over the buttons themselves
+        // (Since container has pointer-events: none, events bubble from the buttons)
+        buttons.forEach(btn => {
+            btn.addEventListener('mouseenter', show);
+            btn.addEventListener('mouseleave', hide);
+        });
 
         document.body.appendChild(container);
         this.overlays.set(media, container);

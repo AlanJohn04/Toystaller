@@ -96,4 +96,72 @@
     PatchedXHR.prototype = OriginalXHR.prototype;
     window.XMLHttpRequest = PatchedXHR;
 
+    // ─── React Fiber Extractor ───────────────────────────────────────────────────
+    // Allows the extension's isolated world to request the video URL from the
+    // React state of a specific DOM element. This ensures we get the EXACT url
+    // for the hovered video, rather than a random one from the global pool.
+    
+    function searchObjForVideoUrl(obj, seen = new Set(), depth = 0) {
+        if (depth > 6 || !obj || typeof obj !== 'object') return null;
+        if (seen.has(obj)) return null;
+        seen.add(obj);
+
+        if (Array.isArray(obj)) {
+            for (let item of obj) {
+                const res = searchObjForVideoUrl(item, seen, depth + 1);
+                if (res) return res;
+            }
+        } else {
+            for (let key of Object.keys(obj)) {
+                // Skip circular React properties that go back up the tree
+                if (key === 'return' || key === 'sibling' || key === '_owner' || key === 'parent') continue;
+                
+                const val = obj[key];
+                if (typeof val === 'string') {
+                    // Look for valid MP4 URLs (skip DASH segments if possible)
+                    if (
+                        (val.includes('.mp4') || key === 'video_url' || key === 'playback_url') &&
+                        val.startsWith('http') &&
+                        !val.includes('bytestart')
+                    ) {
+                        return val;
+                    }
+                } else if (typeof val === 'object') {
+                    const res = searchObjForVideoUrl(val, seen, depth + 1);
+                    if (res) return res;
+                }
+            }
+        }
+        return null;
+    }
+
+    function extractVideoUrlFromReact(el) {
+        let current = el;
+        // Search up to 10 levels of parent elements for React props
+        for (let i = 0; i < 10 && current; i++) {
+            const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+            if (key && current[key]) {
+                const found = searchObjForVideoUrl(current[key]);
+                if (found) return found;
+            }
+            current = current.parentElement;
+        }
+        return null;
+    }
+
+    window.addEventListener('magic_get_react_url', (e) => {
+        if (!e.detail || !e.detail.id) return;
+        const id = e.detail.id;
+        const el = document.querySelector(`[data-magic-id="${id}"]`);
+        
+        let url = null;
+        if (el) {
+            url = extractVideoUrlFromReact(el);
+        }
+        
+        window.dispatchEvent(new CustomEvent('magic_response_react_url_' + id, {
+            detail: { url: url }
+        }));
+    });
+
 })();
