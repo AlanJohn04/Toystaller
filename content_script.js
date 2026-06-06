@@ -1,6 +1,28 @@
+// content_script.js
 // This script runs directly on the webpage (Facebook, Instagram, etc.)
-// It finds media (videos and images) and injects the download arrow.
+// It finds media (videos and images) and injects the download/open buttons.
 
+// ─── Strategy 1: Inject the page-world interceptor script ───────────────────
+// This runs in the real page context and monkey-patches fetch/XHR to capture
+// actual CDN video URLs from Instagram's JSON API responses.
+(function injectPageInterceptor() {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('page_interceptor.js');
+    script.onload = () => script.remove();
+    (document.head || document.documentElement).appendChild(script);
+})();
+
+// ─── Strategy 2: Listen for video URLs dispatched by the page interceptor ───
+// The page_interceptor dispatches a CustomEvent with the real CDN URLs.
+// We store them per-tab in a local Set so getMediaUrl can use them.
+const pageInterceptedVideoUrls = new Set();
+window.addEventListener('toystaller_video_urls', (e) => {
+    if (e.detail && Array.isArray(e.detail.urls)) {
+        e.detail.urls.forEach(url => pageInterceptedVideoUrls.add(url));
+    }
+});
+
+// ─── Download helper (for images) ───────────────────────────────────────────
 function triggerDownload(url) {
     chrome.runtime.sendMessage({ action: 'downloadMedia', url: url }, (response) => {
         if (!response || !response.success) {
@@ -9,20 +31,22 @@ function triggerDownload(url) {
     });
 }
 
+// ─── Main injection function ─────────────────────────────────────────────────
 function injectDownloadButtons() {
-    // Find all video and img elements on the page
     const mediaElements = document.querySelectorAll('video, img');
-    
+
     mediaElements.forEach(media => {
-        // Skip small images (e.g., icons, avatars)
+        // Skip small images (icons, avatars, etc.)
         if (media.tagName.toLowerCase() === 'img') {
             if (media.width < 100 || media.height < 100) return;
         }
 
-        // Skip if we already added a button to this media's container
+        // Skip if we already added buttons to this element's parent
         if (media.parentElement && !media.parentElement.querySelector('.magic-dl-container')) {
-            
-            // Create a container for the buttons
+
+            const isVideo = media.tagName.toLowerCase() === 'video';
+
+            // Create container
             const container = document.createElement('div');
             container.className = 'magic-dl-container';
             container.style.cssText = `
@@ -49,9 +73,7 @@ function injectDownloadButtons() {
                 transition: background 0.2s;
             `;
 
-            const isVideo = media.tagName.toLowerCase() === 'video';
-
-            // Create the open button
+            // Open in New Tab button (always present)
             const openBtn = document.createElement('button');
             openBtn.className = 'magic-open-btn';
             openBtn.title = 'Open in New Tab';
@@ -60,7 +82,7 @@ function injectDownloadButtons() {
             openBtn.onmouseover = () => openBtn.style.backgroundColor = 'rgba(52, 152, 219, 0.9)';
             openBtn.onmouseout = () => openBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
 
-            // Create the download button ONLY for images
+            // Download button (only for images)
             let dlBtn = null;
             if (!isVideo) {
                 dlBtn = document.createElement('button');
@@ -72,72 +94,94 @@ function injectDownloadButtons() {
                 dlBtn.onmouseout = () => dlBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
             }
 
-            // Ensure the parent container can hold absolute positioned elements
+            // Make parent relatively positioned so our absolute overlay works
             if (window.getComputedStyle(media.parentElement).position === 'static') {
                 media.parentElement.style.position = 'relative';
             }
 
-            // Hover logic to show container fully when hovered
-            container.addEventListener('mouseenter', () => {
-                container.style.opacity = '1';
-            });
-            container.addEventListener('mouseleave', () => {
-                container.style.opacity = '0.5';
-            });
+            // Hover: fade fully in when user hovers the container itself
+            container.addEventListener('mouseenter', () => { container.style.opacity = '1'; });
+            container.addEventListener('mouseleave', () => { container.style.opacity = '0.5'; });
 
+            // ─── getMediaUrl: multi-strategy URL resolution ──────────────────
             const getMediaUrl = (callback) => {
-                let directSrc = media.src;
-                
-                // If it's a video and src is missing or a blob, check <source> tags
-                if ((!directSrc || directSrc.startsWith('blob:') || directSrc.startsWith('data:')) && isVideo) {
+                // STRATEGY A: video.currentSrc — the real CDN URL the browser chose to play.
+                // This is populated once the video starts loading/playing, and is the most
+                // direct, reliable approach for HTML5 video players.
+                if (isVideo && media.currentSrc && !media.currentSrc.startsWith('blob:') && !media.currentSrc.startsWith('data:')) {
+                    console.log('[Toystaller] Strategy A (currentSrc):', media.currentSrc);
+                    callback(media.currentSrc);
+                    return;
+                }
+
+                // STRATEGY B: video.src or img.src (standard direct link)
+                if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:')) {
+                    console.log('[Toystaller] Strategy B (src):', media.src);
+                    callback(media.src);
+                    return;
+                }
+
+                // STRATEGY C: <source> child tags (for videos with multiple source elements)
+                if (isVideo) {
                     const sourceTag = media.querySelector('source');
                     if (sourceTag && sourceTag.src && !sourceTag.src.startsWith('blob:') && !sourceTag.src.startsWith('data:')) {
-                        directSrc = sourceTag.src;
+                        console.log('[Toystaller] Strategy C (source tag):', sourceTag.src);
+                        callback(sourceTag.src);
+                        return;
                     }
                 }
 
-                if (directSrc && !directSrc.startsWith('blob:') && !directSrc.startsWith('data:')) {
-                    callback(directSrc);
-                } else {
-                    const mediaType = isVideo ? 'video' : 'img';
-                    chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
-                        if (response && response.urls && response.urls.length > 0) {
-                            callback(response.urls[response.urls.length - 1]);
-                        } else {
-                            alert('Media URL not intercepted yet. Please play the media for a second and click again!');
-                        }
-                    });
+                // STRATEGY D: URLs intercepted by the page_interceptor (fetch/XHR monkey-patch)
+                if (isVideo && pageInterceptedVideoUrls.size > 0) {
+                    // Prefer the largest/most-recent URL (Instagram typically returns higher-res last)
+                    const urls = Array.from(pageInterceptedVideoUrls);
+                    // Filter for obvious video CDN URLs; prefer mp4 over m3u8 chunks
+                    const mp4Urls = urls.filter(u => u.includes('.mp4') || u.includes('.m4v'));
+                    const chosen = mp4Urls.length > 0 ? mp4Urls[mp4Urls.length - 1] : urls[urls.length - 1];
+                    console.log('[Toystaller] Strategy D (page interceptor):', chosen);
+                    callback(chosen);
+                    return;
                 }
+
+                // STRATEGY E: Background script network interception (CDN URLs via webRequest)
+                const mediaType = isVideo ? 'video' : 'img';
+                chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
+                    if (response && response.urls && response.urls.length > 0) {
+                        const urls = response.urls;
+                        const mp4Urls = urls.filter(u => u.includes('.mp4') || u.includes('.m4v'));
+                        const chosen = mp4Urls.length > 0 ? mp4Urls[mp4Urls.length - 1] : urls[urls.length - 1];
+                        console.log('[Toystaller] Strategy E (background webRequest):', chosen);
+                        callback(chosen);
+                    } else {
+                        alert('Could not find the video URL yet.\n\nTip: Make sure the video has started playing, then click again.');
+                    }
+                });
             };
 
-            // Handle the click event for download (only if it exists)
+            // Click handlers
             if (dlBtn) {
                 dlBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    e.stopPropagation(); // Prevent clicking the media underneath
+                    e.stopPropagation();
                     getMediaUrl((url) => triggerDownload(url));
                 });
             }
 
-            // Handle the click event for open in new tab
             openBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // Prevent clicking the media underneath
+                e.stopPropagation();
                 getMediaUrl((url) => {
                     chrome.runtime.sendMessage({ action: 'openInNewTab', url: url });
                 });
             });
 
-            // Add the buttons to the container and the container to the media's parent
+            // Assemble: open button first (only button for videos), then download (only for images)
             container.appendChild(openBtn);
-            if (dlBtn) {
-                container.appendChild(dlBtn);
-            }
+            if (dlBtn) container.appendChild(dlBtn);
             media.parentElement.appendChild(container);
         }
     });
 }
 
-// Platforms like Facebook and Instagram load media dynamically as you scroll.
-// We use an interval to continuously check for new media appearing on the screen.
+// Run on a short interval to catch dynamically loaded media (infinite scroll, reels, etc.)
 setInterval(injectDownloadButtons, 1500);
