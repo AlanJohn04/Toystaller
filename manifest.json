@@ -24,7 +24,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content_script.js"],
+      "js": ["overlay_manager.js", "content_script.js"],
       "run_at": "document_start"
     }
   ],
