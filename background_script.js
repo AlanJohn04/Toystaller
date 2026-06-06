@@ -1,7 +1,7 @@
 // This script runs in the background and does the job of the "Network" tab.
 // It silently listens for media requests (.mp4, .m3u8, etc.) and stores them.
 
-const mediaUrls = {};
+const interceptedMedia = {};
 
 const mediaExtensions = ['.mp4', '.m3u8', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv'];
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'];
@@ -13,17 +13,19 @@ chrome.webRequest.onResponseStarted.addListener(
         if (tabId < 0) return;
 
         const lowerUrl = url.toLowerCase();
-        const isMediaFormat = mediaExtensions.some(ext => lowerUrl.includes(ext));
-        const isImageFormat = imageExtensions.some(ext => lowerUrl.includes(ext));
+        const isVideo = type === 'media' || mediaExtensions.some(ext => lowerUrl.includes(ext));
+        const isImage = type === 'image' || imageExtensions.some(ext => lowerUrl.includes(ext));
 
-        // Check if the request is a media file or a common video format
-        if (type === 'media' || type === 'image' || isMediaFormat || isImageFormat) {
-            if (!mediaUrls[tabId]) {
-                mediaUrls[tabId] = new Set();
+        if (isVideo || isImage) {
+            if (!interceptedMedia[tabId]) {
+                interceptedMedia[tabId] = { video: new Set(), img: new Set() };
             }
-            // Store the detected video URL for this specific tab
-            mediaUrls[tabId].add(url);
-            console.log("Intercepted media URL:", url);
+            if (isVideo) {
+                interceptedMedia[tabId].video.add(url);
+                console.log("Intercepted video URL:", url);
+            } else if (isImage) {
+                interceptedMedia[tabId].img.add(url);
+            }
         }
     },
     { urls: ["<all_urls>"] }
@@ -33,7 +35,9 @@ chrome.webRequest.onResponseStarted.addListener(
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getMediaUrls') {
         const tabId = sender.tab ? sender.tab.id : request.tabId;
-        const urls = mediaUrls[tabId] ? Array.from(mediaUrls[tabId]) : [];
+        const mediaType = request.mediaType; // 'video' or 'img'
+        const tabMedia = interceptedMedia[tabId];
+        const urls = tabMedia && tabMedia[mediaType] ? Array.from(tabMedia[mediaType]) : [];
         sendResponse({ urls: urls });
     } else if (request.action === 'downloadMedia') {
         chrome.downloads.download({
@@ -53,5 +57,5 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Clean up memory when a tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
-    delete mediaUrls[tabId];
+    delete interceptedMedia[tabId];
 });

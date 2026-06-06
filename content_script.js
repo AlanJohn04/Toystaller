@@ -81,10 +81,21 @@ function injectDownloadButtons() {
             });
 
             const getMediaUrl = (callback) => {
-                if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:')) {
-                    callback(media.src);
+                let directSrc = media.src;
+                
+                // If it's a video and src is missing or a blob, check <source> tags
+                if ((!directSrc || directSrc.startsWith('blob:') || directSrc.startsWith('data:')) && media.tagName.toLowerCase() === 'video') {
+                    const sourceTag = media.querySelector('source');
+                    if (sourceTag && sourceTag.src && !sourceTag.src.startsWith('blob:') && !sourceTag.src.startsWith('data:')) {
+                        directSrc = sourceTag.src;
+                    }
+                }
+
+                if (directSrc && !directSrc.startsWith('blob:') && !directSrc.startsWith('data:')) {
+                    callback(directSrc);
                 } else {
-                    chrome.runtime.sendMessage({ action: 'getMediaUrls' }, (response) => {
+                    const mediaType = media.tagName.toLowerCase(); // 'video' or 'img'
+                    chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
                         if (response && response.urls && response.urls.length > 0) {
                             callback(response.urls[response.urls.length - 1]);
                         } else {
