@@ -12,7 +12,7 @@ Toystaller is a lightweight and powerful browser extension that automatically ex
   - Open Media in New Tab (↗)
 - **Smart Filtering**: Automatically ignores small icons and UI elements to prevent clutter.
 
-## Installation (Unpacked Extension)
+## Installation(Unpacked Extension)
 
 1. Clone or download this repository.
 2. Open your browser and navigate to the Extensions management page:
