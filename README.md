@@ -22,7 +22,6 @@ Toystaller is a lightweight and powerful browser extension that automatically ex
 4. Click on **Load unpacked** and select the `Toystaller` directory.
 5. The extension is now installed and ready to use! Navigate to any site to test it out.
 
-
 ## How it Works
 
 - `content_script.js`: Injects hover buttons on `<video>` and `<img>` elements.
