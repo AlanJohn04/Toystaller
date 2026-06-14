@@ -22,3 +22,7 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# Local version folders
+Version 1/
+Version 2/

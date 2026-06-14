@@ -2,7 +2,7 @@
 
 Toystaller is a lightweight, secure browser extension that extracts high-quality media URLs and adds hover action buttons to videos and images across the web.
 
-**Looking for the original release?** You can access and load the Instagram-focused [Version 1](./Version%201/README.md) if you prefer the classic layout.
+**Looking for the original release?** You can access and load the Instagram-focused [Version 1](../Version%201/README.md) if you prefer the classic layout.
 
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](#)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](#)
