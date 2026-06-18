@@ -1,8 +1,10 @@
-# Toystaller - Version 2 (Smart Placement & LinkedIn Support)
+# Toystaller - Version 3 (Smart Dashboard & Shadow DOM UI)
 
 Toystaller is a lightweight, secure browser extension that extracts high-quality media URLs and adds hover action buttons to videos and images across the web.
 
-**Looking for the original release?** You can access and load the Instagram-focused [Version 1](https://github.com/SudiptaSanki/Toystaller/tree/v1) if you prefer the classic layout.
+**Looking for previous releases?** 
+- [Version 2 (Smart Placement & LinkedIn Support)](https://github.com/SudiptaSanki/Toystaller/tree/v2)
+- [Version 1 (Classic Instagram Layout)](https://github.com/SudiptaSanki/Toystaller/tree/v1)
 
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](#)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](#)
@@ -11,17 +13,17 @@ Toystaller is a lightweight, secure browser extension that extracts high-quality
 
 ---
 
-## 🚀 What's New in Version 2
+## 🚀 What's New in Version 3
 
-Version 2 upgrades the extension with advanced features, better image targeting, raw tab filters, and robust platform-aware overrides to prevent clashing with native website controls.
+Version 3 introduces a major architectural shift to give users granular control over when and where Toystaller runs, ensuring zero interface clashes on generic websites.
 
-| Problem in v1 | Fix in v2 |
+| Feature | Description |
 |---------------|-----------|
-| **Button Clashes** (e.g. overlapped close, share, volume controls) | **Platform-Aware Placement**: Automatically maps sites to safe corners. On **Instagram** and **LinkedIn**, buttons default to the **top-left** corner on media elements to stay clear of native UI. |
-| **Raw Tab Duplication** | **Raw Media Filter**: The content script ignores tabs containing direct video or image files, preventing redundant overlays from rendering on top of a media tab. |
-| **Grid Image Filtering** | **Improved Image Targeting**: Images inside buttons, links, or galleries are no longer skipped if they possess a large source resolution (`naturalWidth >= 200`). |
-| **LinkedIn Video Extraction** | **LinkedIn Support**: Extends network request interception and React Fiber traversal to retrieve progressive `.mp4` URLs from LinkedIn's CDNs. |
-| **Position & Tracking** | **ResizeObserver**: Tracks media scale updates dynamically, keeping overlays tight during page layout changes. |
+| **Smart Dormant Mode** | Toystaller now stays completely inactive by default on most sites to prevent its overlays from interfering with native layouts. |
+| **Zero-Config Socials** | Extension remains **Always Active** by default on `instagram.com` and `linkedin.com`. |
+| **Injected UI Dashboard** | Clicking the extension icon injects a premium, glassmorphic UI overlay directly onto the webpage, built using a **Shadow DOM** so it never clashes with the host website's CSS. |
+| **Site Allowlisting** | Use the dashboard to toggle Toystaller ON for any specific website. Your preferences are saved locally. |
+| **Global Override** | A master switch is available for power users to force Toystaller to run everywhere. |
 
 ---
 
