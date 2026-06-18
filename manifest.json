@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Toystaller",
-  "version": "2.1",
+  "version": "3.0",
   "description": "Extracts real video and image URLs and adds smart-positioned download/open buttons that avoid clashing with site controls.",
   "icons": {
     "16": "Toystaller_logo.png",
@@ -13,7 +13,8 @@
     "activeTab",
     "scripting",
     "downloads",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"

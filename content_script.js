@@ -1,13 +1,26 @@
 // content_script.js
 // Finds media (videos and images) and injects download/open buttons.
-// v2: compact buttons on small media, improved skip rules for UI thumbnails.
+// v3: Dashboard UI overlay, conditional site injection.
 
-(function injectPageInterceptor() {
+let toystallerBooted = false;
+
+function bootToystaller() {
+    if (toystallerBooted) return;
+    toystallerBooted = true;
+
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL('page_interceptor.js');
     script.onload = () => script.remove();
     (document.head || document.documentElement).appendChild(script);
-})();
+
+    injectDownloadButtons();
+    setInterval(injectDownloadButtons, 1500);
+
+    const mediaObserver = new MutationObserver(scheduleInject);
+    if (document.documentElement) {
+        mediaObserver.observe(document.documentElement, { childList: true, subtree: true });
+    }
+}
 
 const pageInterceptedVideoUrls = new Set();
 window.addEventListener('toystaller_video_urls', (e) => {
@@ -274,10 +287,229 @@ function scheduleInject() {
     }, 200);
 }
 
-injectDownloadButtons();
-setInterval(injectDownloadButtons, 1500);
+// Removed direct calls; handled by bootToystaller()
 
-const mediaObserver = new MutationObserver(scheduleInject);
-if (document.documentElement) {
-    mediaObserver.observe(document.documentElement, { childList: true, subtree: true });
+const defaultAllowed = ['instagram.com', 'linkedin.com'];
+const currentHost = window.location.hostname.toLowerCase();
+const isDefault = defaultAllowed.some(s => currentHost.includes(s));
+
+if (isDefault) {
+    bootToystaller();
+} else {
+    chrome.storage.local.get({ globalEnabled: false, allowedSites: defaultAllowed }, (result) => {
+        if (result.globalEnabled || result.allowedSites.some(s => currentHost.includes(s))) {
+            bootToystaller();
+        }
+    });
+}
+
+// --- Dashboard UI Injection ---
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'toggleDashboard') {
+        toggleDashboardOverlay();
+        sendResponse({ success: true });
+    }
+});
+
+let dashboardHost = null;
+
+function toggleDashboardOverlay() {
+    if (dashboardHost) {
+        dashboardHost.remove();
+        dashboardHost = null;
+        return;
+    }
+
+    dashboardHost = document.createElement('div');
+    // Ensure highest z-index and fixed position
+    dashboardHost.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 2147483647;';
+    document.body.appendChild(dashboardHost);
+
+    const shadow = dashboardHost.attachShadow({ mode: 'open' });
+
+    chrome.storage.local.get({ globalEnabled: false, allowedSites: ['instagram.com', 'linkedin.com'] }, (result) => {
+        const host = window.location.hostname.toLowerCase();
+        const isAllowed = result.allowedSites.some(s => host.includes(s));
+
+        shadow.innerHTML = `
+            <style>
+                :host {
+                    all: initial;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                }
+                .dashboard {
+                    width: 320px;
+                    background: rgba(20, 20, 20, 0.85);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 16px;
+                    padding: 20px;
+                    color: #fff;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                    animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                .header h2 {
+                    margin: 0;
+                    font-size: 18px;
+                    font-weight: 600;
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+                .close-btn {
+                    background: none;
+                    border: none;
+                    color: #aaa;
+                    cursor: pointer;
+                    font-size: 20px;
+                    transition: color 0.2s;
+                    padding: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 4px;
+                }
+                .close-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+                
+                .setting-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                    padding-bottom: 16px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                }
+                .setting-row:last-child {
+                    margin-bottom: 0;
+                    padding-bottom: 0;
+                    border-bottom: none;
+                }
+                .setting-info h3 {
+                    margin: 0 0 4px 0;
+                    font-size: 14px;
+                    font-weight: 500;
+                }
+                .setting-info p {
+                    margin: 0;
+                    font-size: 12px;
+                    color: #aaa;
+                }
+                
+                .switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 44px;
+                    height: 24px;
+                }
+                .switch input { opacity: 0; width: 0; height: 0; }
+                .slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background-color: rgba(255, 255, 255, 0.1);
+                    transition: .3s;
+                    border-radius: 24px;
+                }
+                .slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 3px;
+                    bottom: 3px;
+                    background-color: white;
+                    transition: .3s;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                input:checked + .slider {
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                }
+                input:checked + .slider:before {
+                    transform: translateX(20px);
+                }
+                .btn {
+                    width: 100%;
+                    padding: 10px;
+                    border-radius: 8px;
+                    border: none;
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-top: 15px;
+                    transition: background 0.2s;
+                }
+                .btn:hover { background: rgba(255, 255, 255, 0.15); }
+            </style>
+            
+            <div class="dashboard">
+                <div class="header">
+                    <h2>Toystaller v3</h2>
+                    <button class="close-btn" id="closeBtn" title="Close">&times;</button>
+                </div>
+                
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h3>Enable on this site</h3>
+                        <p>${host || 'Local file'}</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="siteToggle" ${isAllowed ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <h3>Global Override</h3>
+                        <p>Enable Toystaller everywhere</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="globalToggle" ${result.globalEnabled ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <button class="btn" id="reloadBtn" style="display: none;">Reload Page to Apply</button>
+            </div>
+        `;
+
+        shadow.getElementById('closeBtn').addEventListener('click', toggleDashboardOverlay);
+
+        const reloadBtn = shadow.getElementById('reloadBtn');
+        const showReload = () => { reloadBtn.style.display = 'block'; };
+
+        shadow.getElementById('siteToggle').addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            chrome.storage.local.get({ allowedSites: ['instagram.com', 'linkedin.com'] }, (res) => {
+                let sites = res.allowedSites;
+                if (checked) {
+                    if (!sites.includes(host)) sites.push(host);
+                } else {
+                    sites = sites.filter(s => s !== host);
+                }
+                chrome.storage.local.set({ allowedSites: sites }, showReload);
+            });
+        });
+
+        shadow.getElementById('globalToggle').addEventListener('change', (e) => {
+            chrome.storage.local.set({ globalEnabled: e.target.checked }, showReload);
+        });
+
+        reloadBtn.addEventListener('click', () => window.location.reload());
+    });
 }
