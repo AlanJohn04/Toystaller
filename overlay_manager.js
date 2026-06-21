@@ -166,7 +166,17 @@ class OverlayManager {
             resizeObserver.observe(hoverHost);
         }
 
-        const entry = { container, corner: null, resizeObserver, hoverHost };
+        const entry = { container, corner: null, resizeObserver, hoverHost, isVisible: false, intersectionObserver: null };
+        
+        entry.intersectionObserver = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+                entry.isVisible = e.isIntersecting;
+                this.updatePosition(media, container);
+            }
+        }, { threshold: 0.15 }); // Require at least 15% visibility
+        
+        entry.intersectionObserver.observe(media);
+
         this.overlays.set(media, entry);
 
         requestAnimationFrame(() => this.updatePosition(media, container));
@@ -312,6 +322,7 @@ class OverlayManager {
 
         if (!media.isConnected) {
             entry.resizeObserver.disconnect();
+            if (entry.intersectionObserver) entry.intersectionObserver.disconnect();
             container.remove();
             if (this.activeEntry === entry) this.activeEntry = null;
             this.overlays.delete(media);
@@ -319,8 +330,11 @@ class OverlayManager {
         }
 
         const rect = media.getBoundingClientRect();
+        
+        const style = window.getComputedStyle(media);
+        const isStyleHidden = style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none';
 
-        if (rect.width === 0 || rect.height === 0) {
+        if (rect.width === 0 || rect.height === 0 || !entry.isVisible || isStyleHidden) {
             container.style.display = 'none';
             container.style.visibility = 'hidden';
             return;
