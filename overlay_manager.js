@@ -79,23 +79,50 @@ class OverlayManager {
         const x = e.clientX;
         const y = e.clientY;
 
+        let hoverCandidates = [];
+
+        // 1. Check if hovering directly over an existing button
         for (const [media, entry] of this.overlays.entries()) {
             if (entry.container.style.display === 'none') continue;
 
-            const hoverRect = this._getHoverRect(media, entry);
-            if (hoverRect.width === 0 || hoverRect.height === 0) continue;
-
-            const overMedia = this._pointInRect(x, y, hoverRect);
             const btnRect = entry.container.getBoundingClientRect();
-            const overButtons = btnRect.width > 0 && this._pointInRect(x, y, btnRect);
-
-            if (overMedia || overButtons) {
+            if (btnRect.width > 0 && this._pointInRect(x, y, btnRect)) {
                 this._show(entry);
                 return;
             }
+
+            const hoverRect = this._getHoverRect(media, entry);
+            if (hoverRect.width > 0 && hoverRect.height > 0 && this._pointInRect(x, y, hoverRect)) {
+                hoverCandidates.push({ media, entry });
+            }
         }
 
-        this._scheduleHide();
+        if (hoverCandidates.length === 0) {
+            this._scheduleHide();
+            return;
+        }
+
+        if (hoverCandidates.length === 1) {
+            this._show(hoverCandidates[0].entry);
+            return;
+        }
+
+        // 2. Multiple overlapping media elements. Find the topmost one using native z-index/stacking!
+        const hits = document.elementsFromPoint(x, y);
+        for (const el of hits) {
+            for (const candidate of hoverCandidates) {
+                const entry = candidate.entry;
+                const media = candidate.media;
+                if (el === entry.hoverHost || entry.hoverHost.contains(el) || el === media || media.contains(el)) {
+                    this._show(entry);
+                    return;
+                }
+            }
+        }
+
+        // Fallback: If elementsFromPoint failed to match (e.g. full-screen transparent interceptor div),
+        // we assume the most recently added overlay (last in the Map) is the topmost (like a modal).
+        this._show(hoverCandidates[hoverCandidates.length - 1].entry);
     }
 
     _show(entry) {
