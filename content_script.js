@@ -83,6 +83,14 @@ function isLikelyUiThumbnail(media) {
     if (naturalW < 100 || naturalH < 100) return true;
     if (rect.width < 100 || rect.height < 100) return true;
 
+    // Stricter check for DM chat thumbnails
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('/direct/')) {
+        if (rect.width < 180 || rect.height < 180) return true;
+        // Skip avatar images
+        if (media.closest('[role="button"]') && rect.width < 60) return true;
+    }
+
     const role = (media.getAttribute('role') || '').toLowerCase();
     if (role === 'presentation' || role === 'none') return true;
 
@@ -92,9 +100,38 @@ function isLikelyUiThumbnail(media) {
     return false;
 }
 
+function getInstagramContext() {
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/' || path === '') return 'home';
+    if (path.includes('/direct/')) return 'dm';
+    if (path.includes('/reels/') || path.includes('/reel/')) return 'reels';
+    if (path.includes('/stories/')) return 'stories';
+    if (path.includes('/p/')) return 'post-modal';
+    return 'profile';
+}
+
+function isInsideInstagramModal(media) {
+    // Check if there is an active dialog
+    const dialogs = document.querySelectorAll('[role="dialog"]');
+    if (dialogs.length === 0) return true; // No modal open, so it's fine
+
+    // If a modal is open, the media must be inside it to be considered valid
+    for (const dialog of dialogs) {
+        if (dialog.contains(media)) return true;
+    }
+    
+    return false;
+}
+
 function getButtonScale(media) {
     const rect = media.getBoundingClientRect();
     const minSide = Math.min(rect.width, rect.height);
+    
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('/direct/')) {
+        return 0.75; // Smaller buttons in DMs to avoid clashing
+    }
+    
     if (minSide < 180) return 0.85;
     if (minSide < 280) return 0.95;
     return 1;
@@ -104,9 +141,15 @@ function injectDownloadButtons() {
     if (isRawMediaTab()) return;
 
     const mediaElements = document.querySelectorAll('video, img');
+    
+    // Quick check: is a modal open? If so, we only want media inside it.
+    const hasModal = document.querySelector('[role="dialog"]') !== null;
 
     mediaElements.forEach(media => {
         if (isLikelyUiThumbnail(media)) return;
+        
+        // If a modal is open, only inject on elements inside the modal
+        if (hasModal && !isInsideInstagramModal(media)) return;
 
         if (window.magicOverlayManager && !window.magicOverlayManager.overlays.has(media)) {
             const isVideo = media.tagName.toLowerCase() === 'video';

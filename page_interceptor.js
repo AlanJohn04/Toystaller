@@ -62,12 +62,13 @@
                 url.includes('facebook.com') ||
                 url.includes('linkedin.com') ||
                 url.includes('graph.') ||
-                url.includes('/api/v')
+                url.includes('/api/v') ||
+                url.includes('graphql')
             ) {
                 const clone = response.clone();
                 clone.json().then(data => {
-                    const found = findVideoUrls(data);
-                    dispatchVideoUrls(found);
+                    const foundVideos = findVideoUrls(data);
+                    dispatchVideoUrls(foundVideos);
                 }).catch(() => {});
             }
         } catch (e) {}
@@ -89,11 +90,12 @@
                     reqUrl.includes('instagram.com') ||
                     reqUrl.includes('facebook.com') ||
                     reqUrl.includes('linkedin.com') ||
-                    reqUrl.includes('/api/v')
+                    reqUrl.includes('/api/v') ||
+                    reqUrl.includes('graphql')
                 ) {
                     const data = JSON.parse(this.responseText);
-                    const found = findVideoUrls(data);
-                    dispatchVideoUrls(found);
+                    const foundVideos = findVideoUrls(data);
+                    dispatchVideoUrls(foundVideos);
                 }
             } catch (e) {}
         });

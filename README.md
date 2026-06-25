@@ -1,8 +1,9 @@
-# Toystaller - Version 3 (Smart Dashboard & Shadow DOM UI)
+# Toystaller - Version 4 (Page-Aware Media Extraction & DM Support)
 
 Toystaller is a lightweight, secure browser extension that extracts high-quality media URLs and adds hover action buttons to videos and images across the web.
 
 **Looking for previous releases?** 
+- [Version 3 (Smart Dashboard & Shadow DOM UI)](https://github.com/SudiptaSanki/Toystaller/tree/v3)
 - [Version 2 (Smart Placement & LinkedIn Support)](https://github.com/SudiptaSanki/Toystaller/tree/v2)
 - [Version 1 (Classic Instagram Layout)](https://github.com/SudiptaSanki/Toystaller/tree/v1)
 
@@ -13,17 +14,16 @@ Toystaller is a lightweight, secure browser extension that extracts high-quality
 
 ---
 
-## 🚀 What's New in Version 3
+## 🚀 What's New in Version 4
 
-Version 3 introduces a major architectural shift to give users granular control over when and where Toystaller runs, ensuring zero interface clashes on generic websites.
+Version 4 makes Toystaller deeply aware of complex website structures (especially Instagram) to completely eliminate overlapping "ghost" buttons on hidden media.
 
 | Feature | Description |
 |---------------|-----------|
-| **Smart Dormant Mode** | Toystaller now stays completely inactive by default on most sites to prevent its overlays from interfering with native layouts. |
-| **Zero-Config Socials** | Extension remains **Always Active** by default on `instagram.com` and `linkedin.com`. |
-| **Injected UI Dashboard** | Clicking the extension icon injects a premium, glassmorphic UI overlay directly onto the webpage, built using a **Shadow DOM** so it never clashes with the host website's CSS. |
-| **Site Allowlisting** | Use the dashboard to toggle Toystaller ON for any specific website. Your preferences are saved locally. |
-| **Global Override** | A master switch is available for power users to force Toystaller to run everywhere. |
+| **Overflow-Clip Detection** | Buttons are no longer injected on media that is physically hidden inside `overflow: hidden` or scrollable carousel containers, even if they pass standard intersection checks. |
+| **Modal Context Awareness** | When viewing an Instagram post inside a modal (popup overlay), Toystaller automatically hides buttons for the background feed, keeping your focus strictly on the active media. |
+| **DM Chat Extraction** | Full support for Instagram Private Messages. Intercepts GraphQL API responses to accurately extract progressive video URLs shared in DMs, with scaled-down buttons to avoid UI clashes. |
+| **Reels & Stories Optimization** | Action buttons now intelligently snap to the top-left corner on Reels to avoid overlapping with Instagram's native like/comment action column. |
 
 ---
 

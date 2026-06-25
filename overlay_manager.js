@@ -61,6 +61,51 @@ class OverlayManager {
         return host;
     }
 
+    _isClippedByAncestor(media) {
+        const mediaRect = media.getBoundingClientRect();
+        if (mediaRect.width === 0 || mediaRect.height === 0) return true;
+
+        let node = media.parentElement;
+        let depth = 0;
+
+        while (node && node !== document.body && node !== document.documentElement && depth < 15) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const style = window.getComputedStyle(node);
+                if (style.overflow === 'hidden' || style.overflow === 'scroll' || style.overflow === 'auto' || 
+                    style.overflowY === 'hidden' || style.overflowY === 'scroll' || style.overflowY === 'auto' ||
+                    style.overflowX === 'hidden' || style.overflowX === 'scroll' || style.overflowX === 'auto') {
+                    
+                    const parentRect = node.getBoundingClientRect();
+                    
+                    // Calculate intersection area
+                    const intersectLeft = Math.max(mediaRect.left, parentRect.left);
+                    const intersectTop = Math.max(mediaRect.top, parentRect.top);
+                    const intersectRight = Math.min(mediaRect.right, parentRect.right);
+                    const intersectBottom = Math.min(mediaRect.bottom, parentRect.bottom);
+                    
+                    const intersectWidth = intersectRight - intersectLeft;
+                    const intersectHeight = intersectBottom - intersectTop;
+                    
+                    // If no intersection at all, it's fully clipped
+                    if (intersectWidth <= 0 || intersectHeight <= 0) {
+                        return true;
+                    }
+                    
+                    // If less than 40% of the media area is visible inside the parent, treat it as clipped
+                    const intersectArea = intersectWidth * intersectHeight;
+                    const mediaArea = mediaRect.width * mediaRect.height;
+                    
+                    if (intersectArea / mediaArea < 0.4) {
+                        return true;
+                    }
+                }
+            }
+            node = node.parentElement;
+            depth++;
+        }
+        return false;
+    }
+
     _pointInRect(x, y, rect) {
         return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     }
@@ -90,6 +135,9 @@ class OverlayManager {
                 this._show(entry);
                 return;
             }
+
+            // Skip if visually clipped inside a scroll container
+            if (this._isClippedByAncestor(media)) continue;
 
             const hoverRect = this._getHoverRect(media, entry);
             if (hoverRect.width > 0 && hoverRect.height > 0 && this._pointInRect(x, y, hoverRect)) {
@@ -241,9 +289,22 @@ class OverlayManager {
 
     getPlatformConfig() {
         const host = window.location.hostname.toLowerCase();
-        if (host.includes('instagram.com') || host.includes('linkedin.com')) {
+        const path = window.location.pathname.toLowerCase();
+        
+        if (host.includes('instagram.com')) {
+            if (path.includes('/direct/')) {
+                return { preferredCorners: ['bottom-left', 'top-left'], padding: 12 };
+            }
+            if (path.includes('/reels/') || path.includes('/reel/')) {
+                return { preferredCorners: ['top-left', 'bottom-left'], padding: 12 };
+            }
             return { preferredCorners: ['top-left', 'bottom-left', 'top-right'], padding: 12 };
         }
+        
+        if (host.includes('linkedin.com')) {
+            return { preferredCorners: ['top-left', 'bottom-left', 'top-right'], padding: 12 };
+        }
+        
         return { preferredCorners: ['bottom-right', 'bottom-left', 'top-left'], padding: 10 };
     }
 
@@ -361,7 +422,7 @@ class OverlayManager {
         const style = window.getComputedStyle(media);
         const isStyleHidden = style.opacity === '0' || style.visibility === 'hidden' || style.display === 'none';
 
-        if (rect.width === 0 || rect.height === 0 || !entry.isVisible || isStyleHidden) {
+        if (rect.width === 0 || rect.height === 0 || !entry.isVisible || isStyleHidden || this._isClippedByAncestor(media)) {
             container.style.display = 'none';
             container.style.visibility = 'hidden';
             return;

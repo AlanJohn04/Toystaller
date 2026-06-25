@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Toystaller",
-  "version": "3.0",
-  "description": "Extracts real video and image URLs and adds smart-positioned download/open buttons that avoid clashing with site controls.",
+  "version": "4.0",
+  "description": "Smart media downloader with shadow DOM UI and stealth injection.",
   "icons": {
     "16": "Toystaller_logo.png",
     "48": "Toystaller_logo.png",
