@@ -8,7 +8,7 @@ function bootToystaller() {
     if (toystallerBooted) return;
     toystallerBooted = true;
 
-    // page_interceptor.js is now registered as a MAIN world content script
+    // page_interceptor.js is registered as a MAIN world content script
     // in the manifest for Instagram, LinkedIn, and Facebook.
     // Only inject it dynamically for other sites where the user enables Toystaller.
     const host = window.location.hostname.toLowerCase();
@@ -85,197 +85,34 @@ function isRawMediaTab() {
     return false;
 }
 
+// Safe fallback platform — used if platform modules haven't loaded yet
+const FALLBACK_PLATFORM = {
+    name: 'fallback',
+    hasActiveModal() { return false; },
+    isInsideModal() { return false; },
+    isThumbnail(media) {
+        if (media.tagName.toLowerCase() !== 'img') return false;
+        const rect = media.getBoundingClientRect();
+        const naturalW = media.naturalWidth || media.width;
+        const naturalH = media.naturalHeight || media.height;
+        if (naturalW >= 200 && naturalH >= 200) return false;
+        if (naturalW < 100 || naturalH < 100) return true;
+        if (rect.width < 100 || rect.height < 100) return true;
+        return false;
+    },
+    getButtonScale() { return 1; },
+    filterBackgroundUrls(candidates) { return candidates; }
+};
+
 const PlatformManager = {
     getPlatform() {
+        const platforms = window.ToystallerPlatforms;
+        if (!platforms) return FALLBACK_PLATFORM;
         const host = window.location.hostname.toLowerCase();
-        if (host.includes('instagram.com')) return this.instagram;
-        if (host.includes('linkedin.com')) return this.linkedin;
-        if (host.includes('facebook.com')) return this.facebook;
-        return this.generic;
-    },
-
-    instagram: {
-        name: 'instagram',
-        getContext() {
-            const path = window.location.pathname.toLowerCase();
-            if (path === '/' || path === '') return 'ig-home';
-            if (path.includes('/direct/')) return 'ig-dm';
-            if (path.includes('/reels/') || path.includes('/reel/')) return 'ig-reels';
-            if (path.includes('/stories/')) return 'ig-stories';
-            if (path.includes('/p/')) return 'ig-post-modal';
-            return 'ig-profile';
-        },
-        hasActiveModal() {
-            return document.querySelector('[role="dialog"]') !== null;
-        },
-        isInsideModal(media) {
-            const dialogs = document.querySelectorAll('[role="dialog"]');
-            for (const dialog of dialogs) {
-                if (dialog.contains(media)) return true;
-            }
-            return false;
-        },
-        isThumbnail(media) {
-            if (media.tagName.toLowerCase() !== 'img') return false;
-            const rect = media.getBoundingClientRect();
-            const naturalW = media.naturalWidth || media.width;
-            const naturalH = media.naturalHeight || media.height;
-            
-            const path = window.location.pathname.toLowerCase();
-            if (path.includes('/direct/')) {
-                // ----- DM-specific strict filtering -----
-                // 1. Ignore all small images (profile pics, read receipts, icons)
-                if (rect.width < 250 || rect.height < 200) return true;
-                // 2. Circular profile pics use border-radius:50% — always exclude
-                const style = window.getComputedStyle(media);
-                if (style.borderRadius && (style.borderRadius.includes('50%') || parseInt(style.borderRadius) > 40)) return true;
-                // 3. Images inside the chat list sidebar (left panel) — always exclude
-                //    The chat list lives outside the main conversation area
-                const chatListParent = media.closest('[role="list"], [role="listbox"], [role="navigation"]');
-                if (chatListParent) return true;
-                // 4. Anything wrapped in a link or button that isn't the media itself
-                if (media.closest('a[href]') && rect.width < 300) return true;
-                if (media.closest('[role="button"]')) return true;
-                // 5. role=presentation is always UI chrome
-                const role = (media.getAttribute('role') || '').toLowerCase();
-                if (role === 'presentation' || role === 'none') return true;
-                // Only allow genuinely large sent/received media through
-                return false;
-            }
-            
-            // ----- Non-DM Instagram pages -----
-            if (naturalW >= 200 && naturalH >= 200) return false;
-            if (naturalW < 100 || naturalH < 100) return true;
-            if (rect.width < 100 || rect.height < 100) return true;
-            const role = (media.getAttribute('role') || '').toLowerCase();
-            if (role === 'presentation' || role === 'none') return true;
-            const parent = media.closest('button, a, [role="button"], nav, header');
-            if (parent && (rect.width < 160 || rect.height < 160)) return true;
-            return false;
-        },
-        getButtonScale(media) {
-            const rect = media.getBoundingClientRect();
-            const minSide = Math.min(rect.width, rect.height);
-            if (window.location.pathname.toLowerCase().includes('/direct/')) return 0.75;
-            if (minSide < 180) return 0.85;
-            if (minSide < 280) return 0.95;
-            return 1;
-        }
-    },
-
-    linkedin: {
-        name: 'linkedin',
-        getContext() {
-            const path = window.location.pathname.toLowerCase();
-            if (path.includes('/messaging/')) return 'li-messaging';
-            if (path.includes('/jobs/')) return 'li-jobs';
-            if (path.includes('/learning/')) return 'li-learning';
-            return 'li-feed';
-        },
-        hasActiveModal() {
-            return document.querySelector('.artdeco-modal') !== null || document.querySelector('#artdeco-modal-outlet > *') !== null;
-        },
-        isInsideModal(media) {
-            return media.closest('.artdeco-modal') !== null || media.closest('#artdeco-modal-outlet') !== null;
-        },
-        isThumbnail(media) {
-            if (media.tagName.toLowerCase() !== 'img') return false;
-            const rect = media.getBoundingClientRect();
-            const naturalW = media.naturalWidth || media.width;
-            const naturalH = media.naturalHeight || media.height;
-            if (naturalW >= 200 && naturalH >= 200) return false;
-            if (naturalW < 100 || naturalH < 100) return true;
-            if (rect.width < 100 || rect.height < 100) return true;
-            
-            // Ignore avatars and small UI images
-            if (media.closest('.presence-entity') || media.closest('.ivm-image-view-model') || media.closest('.update-components-actor')) {
-                if (rect.width < 150) return true;
-            }
-            return false;
-        },
-        getButtonScale(media) {
-            const rect = media.getBoundingClientRect();
-            const minSide = Math.min(rect.width, rect.height);
-            if (minSide < 180) return 0.85;
-            if (minSide < 280) return 0.95;
-            return 1;
-        }
-    },
-
-    facebook: {
-        name: 'facebook',
-        getContext() {
-            const path = window.location.pathname.toLowerCase();
-            if (path.includes('/watch')) return 'fb-watch';
-            if (path.includes('/reel/')) return 'fb-reels';
-            if (path.includes('/stories/')) return 'fb-stories';
-            if (path.includes('/groups/')) return 'fb-groups';
-            return 'fb-feed';
-        },
-        hasActiveModal() {
-            const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
-            const actualModals = dialogs.filter(d => {
-                const rect = d.getBoundingClientRect();
-                return rect.width > 400 && rect.height > 400 && rect.top < 100;
-            });
-            return actualModals.length > 0;
-        },
-        isInsideModal(media) {
-            const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'));
-            const actualModals = dialogs.filter(d => {
-                const rect = d.getBoundingClientRect();
-                return rect.width > 400 && rect.height > 400 && rect.top < 100;
-            });
-            for (const dialog of actualModals) {
-                if (dialog.contains(media)) return true;
-            }
-            return false;
-        },
-        isThumbnail(media) {
-            if (media.tagName.toLowerCase() !== 'img') return false;
-            const rect = media.getBoundingClientRect();
-            const naturalW = media.naturalWidth || media.width;
-            const naturalH = media.naturalHeight || media.height;
-            if (naturalW >= 200 && naturalH >= 200) return false;
-            if (naturalW < 100 || naturalH < 100) return true;
-            if (rect.width < 100 || rect.height < 100) return true;
-            
-            if (media.closest('svg') || media.getAttribute('data-imgperflogname')) {
-                if (rect.width < 120) return true;
-            }
-            return false;
-        },
-        getButtonScale(media) {
-            const rect = media.getBoundingClientRect();
-            const minSide = Math.min(rect.width, rect.height);
-            if (minSide < 180) return 0.85;
-            if (minSide < 280) return 0.95;
-            return 1;
-        }
-    },
-
-    generic: {
-        name: 'generic',
-        getContext() { return 'generic'; },
-        hasActiveModal() { return false; },
-        isInsideModal() { return false; },
-        isThumbnail(media) {
-            if (media.tagName.toLowerCase() !== 'img') return false;
-            const rect = media.getBoundingClientRect();
-            const naturalW = media.naturalWidth || media.width;
-            const naturalH = media.naturalHeight || media.height;
-            if (naturalW >= 200 && naturalH >= 200) return false;
-            if (naturalW < 100 || naturalH < 100) return true;
-            if (rect.width < 100 || rect.height < 100) return true;
-            return false;
-        },
-        getButtonScale(media) {
-            const rect = media.getBoundingClientRect();
-            const minSide = Math.min(rect.width, rect.height);
-            if (minSide < 180) return 0.85;
-            if (minSide < 280) return 0.95;
-            return 1;
-        }
+        if (host.includes('instagram.com')) return platforms['instagram'] || FALLBACK_PLATFORM;
+        if (host.includes('linkedin.com')) return platforms['linkedin'] || FALLBACK_PLATFORM;
+        if (host.includes('facebook.com')) return platforms['facebook'] || FALLBACK_PLATFORM;
+        return platforms['generic'] || FALLBACK_PLATFORM;
     }
 };
 
@@ -392,6 +229,7 @@ function injectDownloadButtons() {
                 imgBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    const host = window.location.hostname.toLowerCase();
                     if (isVideo) {
                         let poster = media.getAttribute('poster');
                         
@@ -409,7 +247,6 @@ function injectDownloadButtons() {
 
                         // Fallback 2: LinkedIn specific network interception
                         if (!poster) {
-                            const host = window.location.hostname.toLowerCase();
                             if (host.includes('linkedin.com')) {
                                 if (pageInterceptedVideoUrls.size > 0) {
                                     const covers = Array.from(pageInterceptedVideoUrls).filter(u => u.includes('videocover'));
@@ -509,20 +346,35 @@ function injectDownloadButtons() {
                 const isBlobSource = currentSrc.startsWith('blob:') || currentSrc.startsWith('data:');
                 const host = window.location.hostname.toLowerCase();
 
-                // LinkedIn-specific: videos use blob: URLs so filename matching is impossible.
-                // Instead, grab the best LinkedIn CDN video URL from intercepted URLs.
-                if (isVideo && host.includes('linkedin.com') && isBlobSource && pageInterceptedVideoUrls.size > 0) {
-                    const linkedInVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
-                        const lower = u.toLowerCase();
-                        // Explicitly reject images from being considered as video sources
-                        if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) {
-                            return false;
-                        }
-                        return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback'))) ||
-                               lower.includes('.mp4');
-                    });
-                    if (linkedInVideos.length > 0) {
-                        const best = pickBestVideoUrl(linkedInVideos);
+                // Social platform blob: fallback since they use blob: URLs and filename matching is impossible.
+                // Grab the best platform-specific CDN video URL from intercepted URLs.
+                if (isVideo && isBlobSource && pageInterceptedVideoUrls.size > 0) {
+                    let platformVideos = [];
+                    if (host.includes('linkedin.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) {
+                                return false;
+                            }
+                            return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback'))) ||
+                                   lower.includes('.mp4');
+                        });
+                    } else if (host.includes('instagram.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) return false;
+                            return lower.includes('cdninstagram.com') || lower.includes('.mp4');
+                        });
+                    } else if (host.includes('facebook.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) return false;
+                            return lower.includes('fbcdn.net') || lower.includes('.mp4');
+                        });
+                    }
+
+                    if (platformVideos.length > 0) {
+                        const best = pickBestVideoUrl(platformVideos);
                         if (best) {
                             callback(best);
                             return;
@@ -581,25 +433,10 @@ function injectDownloadButtons() {
                 const mediaType = isVideo ? 'video' : 'img';
                 chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
                     if (response && response.urls && response.urls.length > 0) {
-                        // Filter based on platform
+                        const platform = PlatformManager.getPlatform();
                         let candidates = response.urls;
-                        if (host.includes('linkedin.com')) {
-                            const liVideos = candidates.filter(u => {
-                                const lower = u.toLowerCase();
-                                if (isVideo && (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png'))) {
-                                    return false;
-                                }
-                                return (lower.includes('licdn.com') || lower.includes('.mp4')) && !lower.includes('bytestart');
-                            });
-                            if (liVideos.length > 0) candidates = liVideos;
-                        } else if (host.includes('facebook.com')) {
-                            const fbVideos = candidates.filter(u => {
-                                const lower = u.toLowerCase();
-                                if (isVideo && (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png'))) return false;
-                                return (lower.includes('fbcdn.net') || lower.includes('.mp4')) && !lower.includes('bytestart') && !lower.includes('stream_type=dash');
-                            });
-                            if (fbVideos.length > 0) candidates = fbVideos;
-                        }
+                        const filtered = platform.filterBackgroundUrls(candidates, isVideo);
+                        if (filtered && filtered.length > 0) candidates = filtered;
                         
                         const best = pickBestVideoUrl(candidates);
                         if (best) {

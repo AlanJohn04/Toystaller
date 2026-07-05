@@ -1,8 +1,9 @@
-# Toystaller - Version 4 (Page-Aware Media Extraction)
+# Toystaller - Version 5 (Platform-Aware Architecture & Facebook Support)
 
 Toystaller is a lightweight, secure browser extension that extracts high-quality media URLs and adds hover action buttons to videos and images across the web.
 
 **Looking for previous releases?** 
+- [Version 4 (Page-Aware Media Extraction & DM Support)](https://github.com/SudiptaSanki/Toystaller/tree/v4)
 - [Version 3 (Smart Dashboard & Shadow DOM UI)](https://github.com/SudiptaSanki/Toystaller/tree/v3)
 - [Version 2 (Smart Placement & LinkedIn Support)](https://github.com/SudiptaSanki/Toystaller/tree/v2)
 - [Version 1 (Classic Instagram Layout)](https://github.com/SudiptaSanki/Toystaller/tree/v1)
@@ -14,17 +15,17 @@ Toystaller is a lightweight, secure browser extension that extracts high-quality
 
 ---
 
-## 🚀 What's New in Version 4
+## 🚀 What's New in Version 5
 
-Version 4 introduces the **Platform Abstraction Layer**, allowing Toystaller to understand the specific UI layout and page context of Instagram and LinkedIn to perfectly place action buttons and avoid UI overlap.
+Version 5 introduces the **Platform Abstraction Layer**, allowing Toystaller to understand the specific UI layout and page context of major social networks.
 
 | Feature | Description |
 |---------------|-----------|
-| **Overflow-Clip Detection** | Buttons are no longer injected on media that is physically hidden inside `overflow: hidden` or scrollable carousel containers, even if they pass standard intersection checks. |
-| **LinkedIn Modals Fixed** | Fixed a critical bug where LinkedIn's messaging tab (which uses `role="dialog"`) was mistakenly treated as a full-screen modal, blocking feed videos. Modals are now tracked using LinkedIn's native `.artdeco-modal` classes. |
-| **Instagram Modal Context** | When viewing an Instagram post inside a modal (popup overlay), Toystaller automatically hides buttons for the background feed, keeping your focus strictly on the active media. |
-| **DM Chat Extraction** | Full support for Instagram Private Messages. Intercepts GraphQL API responses to accurately extract progressive video URLs shared in DMs, with scaled-down buttons to avoid UI clashes. |
-| **Platform Contexts** | The extension now dynamically adjusts its logic based on the specific page you are on (e.g. `ig-reels`, `li-messaging`, `ig-post-modal`). |
+| **Facebook Support** | Full support for downloading progressive MP4s from Facebook Reels, Watch, and Feed pages. Accurately filters out Facebook avatars, sponsored icons, and chat heads. |
+| **Dual Button Mode** | Videos now display two buttons: the classic Blue button to open the high-quality video in a new tab, and a Red button to instantly download the video's cover/thumbnail image. |
+| **High-Res Upgrading** | Added a powerful `srcset` parser and URL upgrading logic. When downloading images on LinkedIn, Toystaller now forces the server to return the highest possible resolution instead of the compressed feed thumbnail. |
+| **LinkedIn Modals Fixed** | Fixed a critical bug where LinkedIn's messaging tab was mistakenly treated as a full-screen modal, blocking feed videos. Modals are now tracked using LinkedIn's native `.artdeco-modal` classes. |
+| **DM Chat Layout Fixes** | Stricter dimensional checks and UI-ancestor exclusion in Instagram DMs prevent buttons from flashing on profile pictures and read receipts. |
 
 ---
 

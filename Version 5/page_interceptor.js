@@ -28,6 +28,12 @@
                 if (!isHttp || val.includes('blob:')) continue;
 
                 const lower = val.toLowerCase();
+                const isInternalPage = lower.includes('//www.facebook.com') ||
+                                       lower.includes('//facebook.com') ||
+                                       lower.includes('//www.instagram.com') ||
+                                       lower.includes('//instagram.com');
+                if (isInternalPage) continue;
+
                 const lowerKey = key.toLowerCase();
                 const isVideoKey = VIDEO_KEYS.has(key) ||
                                    lowerKey.includes('video') ||
@@ -67,9 +73,10 @@
                     if (typeof val.progressiveUrl === 'string') {
                         let suffix = '#video.mp4';
                         if (val.height) {
-                        suffix = `#_q=${val.height}p_video.mp4`;
+                            suffix = `#_q=${val.height}p_video.mp4`;
+                        }
+                        found.add(val.progressiveUrl + suffix);
                     }
-                    found.add(val.progressiveUrl + suffix);
                 }
                 findVideoUrls(val, found, depth + 1);
             }
@@ -183,7 +190,12 @@
                             );
 
                         // Reject internal tracking endpoints (e.g., https://www.facebook.com/video/unified_cvc/)
-                        if (lowerVal.includes('facebook.com/') || lowerVal.includes('instagram.com/')) {
+                        // but allow CDN URLs (like *.fbcdn.net, *.cdninstagram.com)
+                        const isInternalPage = lowerVal.includes('//www.facebook.com') ||
+                                               lowerVal.includes('//facebook.com') ||
+                                               lowerVal.includes('//www.instagram.com') ||
+                                               lowerVal.includes('//instagram.com');
+                        if (isInternalPage) {
                             continue;
                         }
 

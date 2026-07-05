@@ -302,33 +302,9 @@ class OverlayManager {
     }
 
     getPlatformConfig() {
-        const host = window.location.hostname.toLowerCase();
-        const path = window.location.pathname.toLowerCase();
-        
-        if (host.includes('instagram.com')) {
-            if (path.includes('/direct/')) {
-                // Force top placement in DMs to avoid sender profile pic clash at bottom
-                return { preferredCorners: ['top-left', 'top-right'], padding: 8 };
-            }
-            if (path.includes('/reels/') || path.includes('/reel/')) {
-                return { preferredCorners: ['top-left', 'bottom-left'], padding: 12 };
-            }
-            return { preferredCorners: ['top-left', 'bottom-left', 'top-right'], padding: 12 };
+        if (typeof PlatformManager !== 'undefined') {
+            return PlatformManager.getPlatform().getPlatformConfig(window.location.pathname.toLowerCase());
         }
-        
-        if (host.includes('linkedin.com')) {
-            return { preferredCorners: ['top-left', 'bottom-left', 'top-right'], padding: 12 };
-        }
-
-        if (host.includes('facebook.com')) {
-            if (path.includes('/reel/')) {
-                // FB Reels have volume/mute and creator info at the bottom.
-                return { preferredCorners: ['top-left', 'top-right'], padding: 16 };
-            }
-            // FB Home has settings/fullscreen buttons at bottom right.
-            return { preferredCorners: ['top-left', 'top-right', 'bottom-left'], padding: 12 };
-        }
-        
         return { preferredCorners: ['bottom-right', 'bottom-left', 'top-left'], padding: 10 };
     }
 

@@ -25,7 +25,14 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["overlay_manager.js", "content_script.js"],
+      "js": [
+        "platforms/generic.js",
+        "platforms/instagram.js",
+        "platforms/facebook.js",
+        "platforms/linkedin.js",
+        "overlay_manager.js",
+        "content_script.js"
+      ],
       "run_at": "document_start"
     },
     {
