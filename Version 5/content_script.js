@@ -58,7 +58,7 @@ function scoreVideoUrl(url) {
     else if (lower.includes('360')) score += 2;
     
     // Heavily penalize image thumbnails to prevent them being picked as videos
-    if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) {
+    if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
         score -= 500;
     }
 
@@ -68,7 +68,22 @@ function scoreVideoUrl(url) {
 
 function pickBestVideoUrl(urls) {
     if (!urls || urls.length === 0) return null;
-    const sorted = [...urls].sort((a, b) => scoreVideoUrl(b) - scoreVideoUrl(a));
+    // Strictly filter out DASH fragments which are unplayable in a new tab and cause black screens
+    let playable = urls.filter(u => {
+        const lower = u.toLowerCase();
+        if (lower.includes('bytestart') || lower.includes('byteend')) return false;
+        if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+        return true;
+    });
+    if (playable.length === 0) {
+        // If absolutely nothing else is available, fallback to whatever we have (except images)
+        playable = urls.filter(u => {
+            const lower = u.toLowerCase();
+            return !(lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp'));
+        });
+        if (playable.length === 0) return null;
+    }
+    const sorted = [...playable].sort((a, b) => scoreVideoUrl(b) - scoreVideoUrl(a));
     return sorted[0];
 }
 
@@ -353,7 +368,7 @@ function injectDownloadButtons() {
                     if (host.includes('linkedin.com')) {
                         platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
                             const lower = u.toLowerCase();
-                            if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) {
+                            if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
                                 return false;
                             }
                             return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback'))) ||
@@ -362,13 +377,13 @@ function injectDownloadButtons() {
                     } else if (host.includes('instagram.com')) {
                         platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
                             const lower = u.toLowerCase();
-                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) return false;
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
                             return lower.includes('cdninstagram.com') || lower.includes('.mp4');
                         });
                     } else if (host.includes('facebook.com')) {
                         platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
                             const lower = u.toLowerCase();
-                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png')) return false;
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
                             return lower.includes('fbcdn.net') || lower.includes('.mp4');
                         });
                     }

@@ -49,7 +49,15 @@
                     (lower.includes('cdninstagram.com') && lower.includes('video')) ||
                     (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback')));
 
-                if (looksLikeVideo) {
+                const looksLikeImage = 
+                    lowerKey.includes('image') ||
+                    lowerKey.includes('thumbnail') ||
+                    lowerKey.includes('cover') ||
+                    lower.includes('.jpg') ||
+                    lower.includes('.png') ||
+                    lower.includes('/image/');
+
+                if (looksLikeVideo && !looksLikeImage && !lower.includes('bytestart')) {
                     found.add(val);
                 }
             } else if (typeof val === 'object') {
