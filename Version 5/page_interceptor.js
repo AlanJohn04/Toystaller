@@ -181,7 +181,7 @@
                                            lowerKey.includes('playback');
                         const lowerVal = val.toLowerCase();
 
-                        if (isVideoContext && (lowerVal.includes('videocover') || lowerVal.includes('/image/') || lowerVal.includes('.jpg') || lowerVal.includes('.png'))) {
+                        if (isVideoContext && (lowerVal.includes('videocover') || lowerVal.includes('/image/') || lowerVal.includes('.jpg') || lowerVal.includes('.png') || lowerVal.includes('.webp') || lowerVal.includes('.heic'))) {
                             continue;
                         }
 
@@ -192,6 +192,8 @@
                                 lowerKey.includes('cover') ||
                                 lowerVal.includes('.jpg') ||
                                 lowerVal.includes('.png') ||
+                                lowerVal.includes('.webp') ||
+                                lowerVal.includes('.heic') ||
                                 lowerVal.includes('/image/') ||
                                 (lowerVal.includes('cdninstagram.com') && !lowerVal.includes('video')) ||
                                 (lowerVal.includes('fbcdn.net') && !lowerVal.includes('video') && !lowerVal.includes('.mp4'))
@@ -263,11 +265,13 @@
     function extractVideoUrlFromReact(el, isVideo = true) {
         let current = el;
         for (let i = 0; i < 10 && current; i++) {
-            const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-            if (key && current[key]) {
-                const found = searchObjForVideoUrl(current[key], new Set(), 0, isVideo);
-                if (found) return found;
-            }
+            try {
+                const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+                if (key && current[key]) {
+                    const found = searchObjForVideoUrl(current[key], new Set(), 0, isVideo);
+                    if (found) return found;
+                }
+            } catch (e) {}
             current = current.parentElement;
         }
         return null;

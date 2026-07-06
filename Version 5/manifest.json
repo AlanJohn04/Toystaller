@@ -10,6 +10,8 @@
   },
   "permissions": [
     "webRequest",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
     "activeTab",
     "scripting",
     "downloads",
@@ -46,6 +48,15 @@
       "world": "MAIN"
     }
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
   "web_accessible_resources": [
     {
       "resources": ["page_interceptor.js"],

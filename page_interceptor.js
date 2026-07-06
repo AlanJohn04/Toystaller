@@ -28,6 +28,12 @@
                 if (!isHttp || val.includes('blob:')) continue;
 
                 const lower = val.toLowerCase();
+                const isInternalPage = lower.includes('//www.facebook.com') ||
+                                       lower.includes('//facebook.com') ||
+                                       lower.includes('//www.instagram.com') ||
+                                       lower.includes('//instagram.com');
+                if (isInternalPage) continue;
+
                 const lowerKey = key.toLowerCase();
                 const isVideoKey = VIDEO_KEYS.has(key) ||
                                    lowerKey.includes('video') ||
@@ -43,7 +49,15 @@
                     (lower.includes('cdninstagram.com') && lower.includes('video')) ||
                     (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback')));
 
-                if (looksLikeVideo) {
+                const looksLikeImage = 
+                    lowerKey.includes('image') ||
+                    lowerKey.includes('thumbnail') ||
+                    lowerKey.includes('cover') ||
+                    lower.includes('.jpg') ||
+                    lower.includes('.png') ||
+                    lower.includes('/image/');
+
+                if (looksLikeVideo && !looksLikeImage && !lower.includes('bytestart')) {
                     found.add(val);
                 }
             } else if (typeof val === 'object') {
@@ -67,9 +81,10 @@
                     if (typeof val.progressiveUrl === 'string') {
                         let suffix = '#video.mp4';
                         if (val.height) {
-                        suffix = `#_q=${val.height}p_video.mp4`;
+                            suffix = `#_q=${val.height}p_video.mp4`;
+                        }
+                        found.add(val.progressiveUrl + suffix);
                     }
-                    found.add(val.progressiveUrl + suffix);
                 }
                 findVideoUrls(val, found, depth + 1);
             }
@@ -166,7 +181,7 @@
                                            lowerKey.includes('playback');
                         const lowerVal = val.toLowerCase();
 
-                        if (isVideoContext && (lowerVal.includes('videocover') || lowerVal.includes('/image/') || lowerVal.includes('.jpg') || lowerVal.includes('.png'))) {
+                        if (isVideoContext && (lowerVal.includes('videocover') || lowerVal.includes('/image/') || lowerVal.includes('.jpg') || lowerVal.includes('.png') || lowerVal.includes('.webp') || lowerVal.includes('.heic'))) {
                             continue;
                         }
 
@@ -177,13 +192,20 @@
                                 lowerKey.includes('cover') ||
                                 lowerVal.includes('.jpg') ||
                                 lowerVal.includes('.png') ||
+                                lowerVal.includes('.webp') ||
+                                lowerVal.includes('.heic') ||
                                 lowerVal.includes('/image/') ||
                                 (lowerVal.includes('cdninstagram.com') && !lowerVal.includes('video')) ||
                                 (lowerVal.includes('fbcdn.net') && !lowerVal.includes('video') && !lowerVal.includes('.mp4'))
                             );
 
                         // Reject internal tracking endpoints (e.g., https://www.facebook.com/video/unified_cvc/)
-                        if (lowerVal.includes('facebook.com/') || lowerVal.includes('instagram.com/')) {
+                        // but allow CDN URLs (like *.fbcdn.net, *.cdninstagram.com)
+                        const isInternalPage = lowerVal.includes('//www.facebook.com') ||
+                                               lowerVal.includes('//facebook.com') ||
+                                               lowerVal.includes('//www.instagram.com') ||
+                                               lowerVal.includes('//instagram.com');
+                        if (isInternalPage) {
                             continue;
                         }
 
@@ -243,11 +265,13 @@
     function extractVideoUrlFromReact(el, isVideo = true) {
         let current = el;
         for (let i = 0; i < 10 && current; i++) {
-            const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-            if (key && current[key]) {
-                const found = searchObjForVideoUrl(current[key], new Set(), 0, isVideo);
-                if (found) return found;
-            }
+            try {
+                const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+                if (key && current[key]) {
+                    const found = searchObjForVideoUrl(current[key], new Set(), 0, isVideo);
+                    if (found) return found;
+                }
+            } catch (e) {}
             current = current.parentElement;
         }
         return null;
