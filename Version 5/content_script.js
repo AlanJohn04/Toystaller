@@ -73,6 +73,8 @@ function pickBestVideoUrl(urls) {
         const lower = u.toLowerCase();
         if (lower.includes('bytestart') || lower.includes('byteend')) return false;
         if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+        // Reject streaming manifests that cause black screens
+        if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
         return true;
     });
     if (playable.length === 0) {
@@ -206,6 +208,12 @@ function injectDownloadButtons() {
                 openBtn.title = isVideo ? 'Open video in new tab' : 'Open image in new tab';
                 openBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
                 openBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
+
+                // For video elements, hide the blue button until we confirm a valid URL exists
+                if (isVideo) {
+                    openBtn.style.display = 'none';
+                }
+
                 openBtn.addEventListener('mouseenter', () => {
                     openBtn.style.opacity = '1';
                     openBtn.style.backgroundColor = 'rgba(52, 152, 219, 0.95)';
@@ -326,6 +334,19 @@ function injectDownloadButtons() {
                 return buttons;
             };
 
+            // Pre-resolve video URL to conditionally show/hide the blue button
+            const preResolveVideoUrl = (openBtn) => {
+                if (!isVideo) return;
+                getMediaUrl((url) => {
+                    if (url) {
+                        // Cache the resolved URL and show the button
+                        openBtn.__resolvedVideoUrl = url;
+                        openBtn.style.display = 'flex';
+                    }
+                    // If no URL found, button stays hidden
+                });
+            };
+
             const getMediaUrl = (callback) => {
                 // Step 1: Try React Fiber extraction (works on Instagram)
                 if (isVideo) {
@@ -371,7 +392,11 @@ function injectDownloadButtons() {
                             if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
                                 return false;
                             }
-                            return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback'))) ||
+                            // Reject streaming manifests — only accept progressive mp4
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) {
+                                return false;
+                            }
+                            return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playback'))) ||
                                    lower.includes('.mp4');
                         });
                     } else if (host.includes('instagram.com')) {
@@ -384,6 +409,8 @@ function injectDownloadButtons() {
                         platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
                             const lower = u.toLowerCase();
                             if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+                            // Reject streaming manifests
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
                             return lower.includes('fbcdn.net') || lower.includes('.mp4');
                         });
                     }
@@ -465,6 +492,19 @@ function injectDownloadButtons() {
 
             if (window.magicOverlayManager) {
                 window.magicOverlayManager.addOverlay(media, createButtonsFn);
+                // After overlay is created, pre-resolve the video URL
+                if (isVideo) {
+                    // Small delay to let the overlay manager create the buttons
+                    setTimeout(() => {
+                        const overlay = window.magicOverlayManager.overlays.get(media);
+                        if (overlay) {
+                            const openBtn = overlay.querySelector('.magic-open-btn');
+                            if (openBtn) {
+                                preResolveVideoUrl(openBtn);
+                            }
+                        }
+                    }, 100);
+                }
             }
         }
     });

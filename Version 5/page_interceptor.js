@@ -40,6 +40,11 @@
                                    lowerKey.includes('stream') ||
                                    lowerKey.includes('playback');
 
+                // Reject unplayable streaming formats (DASH/HLS) — they cause black screens in new tabs
+                if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('dash_manifest')) {
+                    continue;
+                }
+
                 const looksLikeVideo =
                     isVideoKey ||
                     lower.includes('.mp4') ||
@@ -47,7 +52,7 @@
                     lower.includes('.webm') ||
                     (lower.includes('fbcdn.net') && lower.includes('video')) ||
                     (lower.includes('cdninstagram.com') && lower.includes('video')) ||
-                    (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playlist') || lower.includes('playback')));
+                    (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playback')));
 
                 const looksLikeImage = 
                     lowerKey.includes('image') ||
@@ -70,6 +75,16 @@
                         found.add(val.playable_url + '#_q=SD_video.mp4');
                     }
                     
+                    // Facebook Reels: progressive_urls array contains merged video+audio mp4
+                    if (Array.isArray(val.progressive_urls)) {
+                        for (const prog of val.progressive_urls) {
+                            if (prog && typeof prog.progressive_url === 'string') {
+                                const quality = (prog.metadata && prog.metadata.quality) || '';
+                                found.add(prog.progressive_url + `#_q=${quality}_video.mp4`);
+                            }
+                        }
+                    }
+
                     // For LinkedIn progressive streams: extract quality and append as a hash for scoring and downloading
                     if (typeof val.streamingUrl === 'string') {
                         let suffix = '#video.mp4';
@@ -209,8 +224,8 @@
                             continue;
                         }
 
-                        // Explicitly skip DASH streams because they aren't playable as standalone files in new tabs
-                        if (isVideoContext && (lowerVal.includes('stream_type=dash') || lowerKey.includes('dash_manifest'))) {
+                        // Explicitly skip DASH/HLS streams because they aren't playable as standalone files in new tabs
+                        if (isVideoContext && (lowerVal.includes('stream_type=dash') || lowerKey.includes('dash_manifest') || lowerVal.includes('.m3u8') || lowerVal.includes('.mpd'))) {
                             continue;
                         }
 
@@ -220,7 +235,7 @@
                                 lowerVal.includes('.mp4') ||
                                 lowerVal.includes('.m4v') ||
                                 lowerVal.includes('.webm') ||
-                                (lowerVal.includes('licdn.com') && (lowerVal.includes('video') || lowerVal.includes('playlist') || lowerVal.includes('playback'))) ||
+                                (lowerVal.includes('licdn.com') && (lowerVal.includes('video') || lowerVal.includes('playback'))) ||
                                 (lowerVal.includes('fbcdn.net') && (lowerVal.includes('video') || lowerVal.includes('.mp4'))) ||
                                 (lowerVal.includes('cdninstagram.com') && lowerVal.includes('video'))
                             );
@@ -237,6 +252,17 @@
                         }
                         if (isVideoContext && val.playable_url && typeof val.playable_url === 'string' && !val.playable_url.includes('stream_type=dash')) {
                             return val.playable_url + '#_q=SD_video.mp4';
+                        }
+
+                        // Facebook Reels: progressive_urls array contains merged video+audio mp4
+                        if (isVideoContext && Array.isArray(val.progressive_urls)) {
+                            let bestProgUrl = null;
+                            for (const prog of val.progressive_urls) {
+                                if (prog && typeof prog.progressive_url === 'string') {
+                                    bestProgUrl = prog.progressive_url;
+                                }
+                            }
+                            if (bestProgUrl) return bestProgUrl + '#_q=progressive_video.mp4';
                         }
 
                         if (typeof val.streamingUrl === 'string') {
@@ -263,6 +289,35 @@
     }
 
     function extractVideoUrlFromReact(el, isVideo = true) {
+        // LinkedIn DOM fallback: check for data-sources attribute on or near the video element
+        if (isVideo) {
+            let dsEl = el;
+            for (let i = 0; i < 5 && dsEl; i++) {
+                const ds = dsEl.getAttribute && dsEl.getAttribute('data-sources');
+                if (ds) {
+                    try {
+                        const sources = JSON.parse(ds);
+                        if (Array.isArray(sources)) {
+                            // Pick the highest bitrate progressive mp4
+                            let best = null;
+                            let bestBitrate = -1;
+                            for (const src of sources) {
+                                if (src && src.src && typeof src.src === 'string') {
+                                    const bitrate = parseInt(src['data-bitrate'] || '0', 10);
+                                    if (bitrate > bestBitrate) {
+                                        bestBitrate = bitrate;
+                                        best = src.src;
+                                    }
+                                }
+                            }
+                            if (best) return best + '#_q=progressive_video.mp4';
+                        }
+                    } catch (e) {}
+                }
+                dsEl = dsEl.parentElement;
+            }
+        }
+
         let current = el;
         for (let i = 0; i < 10 && current; i++) {
             try {

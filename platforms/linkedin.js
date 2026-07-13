@@ -43,6 +43,10 @@ window.ToystallerPlatforms['linkedin'] = Object.assign({}, window.ToystallerPlat
             if (isVideo && (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png'))) {
                 return false;
             }
+            // Reject streaming manifests — only accept progressive mp4
+            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) {
+                return false;
+            }
             return (lower.includes('licdn.com') || lower.includes('.mp4')) && !lower.includes('bytestart');
         });
     }

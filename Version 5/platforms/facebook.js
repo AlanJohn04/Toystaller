@@ -115,7 +115,9 @@ window.ToystallerPlatforms['facebook'] = Object.assign({}, window.ToystallerPlat
         return candidates.filter(u => {
             const lower = u.toLowerCase();
             if (isVideo && (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png'))) return false;
-            return (lower.includes('fbcdn.net') || lower.includes('.mp4')) && !lower.includes('bytestart') && !lower.includes('stream_type=dash');
+            // Reject streaming manifests — only accept progressive mp4
+            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
+            return (lower.includes('fbcdn.net') || lower.includes('.mp4')) && !lower.includes('bytestart');
         });
     }
 });
