@@ -216,6 +216,15 @@ function injectDownloadButtons() {
                     if (finalUrl && finalUrl.includes('media.licdn.com/dms/image')) {
                         finalUrl = finalUrl.replace(/\/(100|200|400|800)\//g, '/1000/');
                     }
+                    
+                    // Do not return blob URLs or internal page URLs as images
+                    if (finalUrl) {
+                        const lower = finalUrl.toLowerCase();
+                        if (lower.startsWith('blob:') || lower.startsWith('data:')) return null;
+                        if (lower.includes('//www.facebook.com') || lower.includes('//facebook.com')) return null;
+                        if (lower.includes('//www.instagram.com') || lower.includes('//instagram.com')) return null;
+                    }
+                    
                     return finalUrl;
                 };
 
@@ -409,8 +418,8 @@ function injectDownloadButtons() {
                             if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
                                 return false;
                             }
-                            // Reject streaming manifests — only accept progressive mp4
-                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) {
+                            // Reject streaming manifests and DASH fragments — only accept progressive mp4
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart')) {
                                 return false;
                             }
                             return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playback'))) ||
@@ -426,8 +435,8 @@ function injectDownloadButtons() {
                         platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
                             const lower = u.toLowerCase();
                             if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
-                            // Reject streaming manifests
-                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
+                            // Reject streaming manifests and DASH fragments
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart')) return false;
                             return lower.includes('fbcdn.net') || lower.includes('.mp4');
                         });
                     }

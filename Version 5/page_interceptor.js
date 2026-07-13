@@ -313,6 +313,8 @@
                             let bestBitrate = -1;
                             for (const src of sources) {
                                 if (src && src.src && typeof src.src === 'string' && isValidVideo(src.src)) {
+                                    // Must be an mp4 and not a manifest
+                                    if (!src.src.includes('.mp4') || src.src.includes('manifest')) continue;
                                     // Additionally ensure it's not a manifest by checking the type if available
                                     if (src.type && (src.type.includes('mpegurl') || src.type.includes('dash'))) continue;
                                     
@@ -436,6 +438,13 @@
                         onFound(prog.progressive_url + `#_q=${quality}_video.mp4`, qScore);
                     }
                 }
+            }
+        }
+
+        // Priority 4: progressive_url (singular)
+        if (obj.progressive_url && typeof obj.progressive_url === 'string') {
+            if (isValidVideo(obj.progressive_url)) {
+                onFound(obj.progressive_url + '#_q=progressive_video.mp4', 1);
             }
         }
 
