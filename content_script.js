@@ -497,8 +497,8 @@ function injectDownloadButtons() {
                     // Small delay to let the overlay manager create the buttons
                     setTimeout(() => {
                         const overlay = window.magicOverlayManager.overlays.get(media);
-                        if (overlay) {
-                            const openBtn = overlay.querySelector('.magic-open-btn');
+                        if (overlay && overlay.container) {
+                            const openBtn = overlay.container.querySelector('.magic-open-btn');
                             if (openBtn) {
                                 preResolveVideoUrl(openBtn);
                             }
