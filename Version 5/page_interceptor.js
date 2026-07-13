@@ -357,9 +357,17 @@
     // Facebook-specific: Parse relay data from <script> tags to find progressive video URLs
     // This mirrors yt-dlp's extract_relay_prefetched_data approach
     function extractFromFacebookRelayData() {
-        const scripts = document.querySelectorAll('script[type="application/json"][data-sjs], script[data-content-len]');
+        const scripts = document.querySelectorAll('script');
         let bestUrl = null;
         let bestQuality = -1;
+        const seen = new Set();
+
+        const checkAndSet = (url, q) => {
+            if (isValidVideo(url) && q > bestQuality) {
+                bestQuality = q;
+                bestUrl = url;
+            }
+        };
 
         for (const script of scripts) {
             const text = script.textContent;
@@ -369,16 +377,23 @@
 
             try {
                 const data = JSON.parse(text);
-                scanRelayDataForVideoUrls(data, 0, new Set(), (url, quality) => {
-                    if (quality > bestQuality) {
-                        bestQuality = quality;
-                        bestUrl = url;
+                scanRelayDataForVideoUrls(data, 0, seen, checkAndSet);
+            } catch (e) {
+                // If JSON parsing fails (e.g., wrapped in handleServerJS), fallback to Regex extraction
+                try {
+                    const hdMatch = text.match(/"playable_url_quality_hd"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+                    if (hdMatch && hdMatch[1]) {
+                        const url = JSON.parse('"' + hdMatch[1] + '"'); // unescape string
+                        checkAndSet(url + '#_q=HD_video.mp4', 3);
                     }
-                });
-            } catch (e) {}
-
-            // If we found HD, no need to keep looking
-            if (bestQuality >= 2) break;
+                    
+                    const sdMatch = text.match(/"playable_url"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+                    if (sdMatch && sdMatch[1]) {
+                        const url = JSON.parse('"' + sdMatch[1] + '"');
+                        checkAndSet(url + '#_q=SD_video.mp4', 2);
+                    }
+                } catch (err) {}
+            }
         }
         return bestUrl;
     }
