@@ -382,10 +382,20 @@
             return;
         }
 
+        const isValidVideo = (url) => {
+            if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
+            if (url.includes('stream_type=dash') || url.includes('.mpd')) return false;
+            const lower = url.toLowerCase();
+            return !(lower.includes('//www.facebook.com') || 
+                     lower.includes('//facebook.com') ||
+                     lower.includes('//www.instagram.com') || 
+                     lower.includes('//instagram.com'));
+        };
+
         // Priority 1: playable_url_quality_hd (HD progressive mp4)
         if (obj.playable_url_quality_hd && typeof obj.playable_url_quality_hd === 'string') {
             const url = obj.playable_url_quality_hd;
-            if (url.startsWith('http') && !url.includes('stream_type=dash') && !url.includes('.mpd')) {
+            if (isValidVideo(url)) {
                 onFound(url + '#_q=HD_video.mp4', 3);
             }
         }
@@ -393,7 +403,7 @@
         // Priority 2: playable_url (SD progressive mp4)
         if (obj.playable_url && typeof obj.playable_url === 'string') {
             const url = obj.playable_url;
-            if (url.startsWith('http') && !url.includes('stream_type=dash') && !url.includes('.mpd')) {
+            if (isValidVideo(url)) {
                 onFound(url + '#_q=SD_video.mp4', 2);
             }
         }
@@ -401,10 +411,12 @@
         // Priority 3: progressive_urls array from videoDeliveryResponseResult
         if (Array.isArray(obj.progressive_urls)) {
             for (const prog of obj.progressive_urls) {
-                if (prog && typeof prog.progressive_url === 'string' && prog.progressive_url.startsWith('http')) {
-                    const quality = (prog.metadata && prog.metadata.quality) || '';
-                    const qScore = quality.toLowerCase() === 'hd' ? 3 : 1;
-                    onFound(prog.progressive_url + `#_q=${quality}_video.mp4`, qScore);
+                if (prog && typeof prog.progressive_url === 'string') {
+                    if (isValidVideo(prog.progressive_url)) {
+                        const quality = (prog.metadata && prog.metadata.quality) || '';
+                        const qScore = quality.toLowerCase() === 'hd' ? 3 : 1;
+                        onFound(prog.progressive_url + `#_q=${quality}_video.mp4`, qScore);
+                    }
                 }
             }
         }

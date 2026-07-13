@@ -361,10 +361,10 @@ function injectDownloadButtons() {
                         openBtn.style.display = 'flex';
                     }
                     // If no URL found, button stays hidden
-                });
+                }, true); // Silent check
             };
 
-            const getMediaUrl = (callback) => {
+            const getMediaUrl = (callback, silent = false) => {
                 // Step 1: Try React Fiber extraction (works on Instagram)
                 if (isVideo) {
                     let resolved = false;
@@ -376,7 +376,7 @@ function injectDownloadButtons() {
                         if (e.data.url) {
                             callback(e.data.url);
                         } else {
-                            getMediaUrlFallback(callback);
+                            getMediaUrlFallback(callback, silent);
                         }
                     };
                     window.addEventListener('message', handler);
@@ -386,15 +386,15 @@ function injectDownloadButtons() {
                         if (resolved) return;
                         resolved = true;
                         window.removeEventListener('message', handler);
-                        getMediaUrlFallback(callback);
+                        getMediaUrlFallback(callback, silent);
                     }, 300);
                     return;
                 }
 
-                getMediaUrlFallback(callback);
+                getMediaUrlFallback(callback, silent);
             };
 
-            const getMediaUrlFallback = (callback) => {
+            const getMediaUrlFallback = (callback, silent = false) => {
                 const currentSrc = media.currentSrc || media.src || '';
                 const isBlobSource = currentSrc.startsWith('blob:') || currentSrc.startsWith('data:');
                 const host = window.location.hostname.toLowerCase();
@@ -513,7 +513,9 @@ function injectDownloadButtons() {
                             return;
                         }
                     }
-                    alert('Could not find the video URL yet.\n\nTip: Make sure the video has started playing, then click the button again.');
+                    if (!silent) {
+                        alert('Could not find the video URL yet.\n\nTip: Make sure the video has started playing, then click the button again.');
+                    }
                 });
             };
 
