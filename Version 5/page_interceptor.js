@@ -12,12 +12,22 @@
         'video_url', 'playback_url', 'src', 'url', 'dash_manifest',
         'progressiveUrl', 'downloadUrl', 'streamingUrl', 'videoUrl',
         'progressiveStreams', 'transcodedVideoUrl',
-        // Facebook GraphQL keys
         'playable_url', 'playable_url_quality_hd',
-        // LinkedIn Voyager API keys
-        'adaptiveStreams', 'progressiveStreams', 'mediaUrl',
+        'adaptiveStreams', 'mediaUrl',
         'media', 'rootUrl', 'liveVideoUrl', 'thumbnail'
     ]);
+
+    function isValidVideo(url) {
+        if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
+        if (url.includes('stream_type=dash') || url.includes('.mpd')) return false;
+        const lower = url.toLowerCase();
+        return !(lower.includes('//www.facebook.com') || 
+                 lower.includes('//facebook.com') ||
+                 lower.includes('//www.instagram.com') || 
+                 lower.includes('//instagram.com') ||
+                 lower.includes('//www.linkedin.com') || 
+                 lower.includes('//linkedin.com'));
+    }
 
     function findVideoUrls(obj, found = new Set(), depth = 0) {
         if (depth > 12 || !obj || typeof obj !== 'object') return found;
@@ -302,7 +312,10 @@
                             let best = null;
                             let bestBitrate = -1;
                             for (const src of sources) {
-                                if (src && src.src && typeof src.src === 'string') {
+                                if (src && src.src && typeof src.src === 'string' && isValidVideo(src.src)) {
+                                    // Additionally ensure it's not a manifest by checking the type if available
+                                    if (src.type && (src.type.includes('mpegurl') || src.type.includes('dash'))) continue;
+                                    
                                     const bitrate = parseInt(src['data-bitrate'] || '0', 10);
                                     if (bitrate > bestBitrate) {
                                         bestBitrate = bitrate;
@@ -381,16 +394,6 @@
             }
             return;
         }
-
-        const isValidVideo = (url) => {
-            if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
-            if (url.includes('stream_type=dash') || url.includes('.mpd')) return false;
-            const lower = url.toLowerCase();
-            return !(lower.includes('//www.facebook.com') || 
-                     lower.includes('//facebook.com') ||
-                     lower.includes('//www.instagram.com') || 
-                     lower.includes('//instagram.com'));
-        };
 
         // Priority 1: playable_url_quality_hd (HD progressive mp4)
         if (obj.playable_url_quality_hd && typeof obj.playable_url_quality_hd === 'string') {
