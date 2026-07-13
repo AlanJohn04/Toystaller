@@ -172,7 +172,7 @@
     window.XMLHttpRequest = PatchedXHR;
 
     function searchObjForVideoUrl(obj, seen = new Set(), depth = 0, isVideoContext = true) {
-        if (depth > 6 || !obj || typeof obj !== 'object') return null;
+        if (depth > 12 || !obj || typeof obj !== 'object') return null;
         if (seen.has(obj)) return null;
         seen.add(obj);
 

@@ -449,14 +449,23 @@ function injectDownloadButtons() {
                     }
                 }
 
+                const isInternalPage = (urlStr) => {
+                    const lower = (urlStr || '').toLowerCase();
+                    return lower.includes('//www.facebook.com') ||
+                           lower.includes('//facebook.com') ||
+                           lower.includes('//www.instagram.com') ||
+                           lower.includes('//instagram.com');
+                };
+
                 if (isVideo && media.currentSrc &&
                     !media.currentSrc.startsWith('blob:') &&
-                    !media.currentSrc.startsWith('data:')) {
+                    !media.currentSrc.startsWith('data:') &&
+                    !isInternalPage(media.currentSrc)) {
                     callback(media.currentSrc);
                     return;
                 }
 
-                if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:')) {
+                if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:') && !isInternalPage(media.src)) {
                     callback(media.src);
                     return;
                 }
@@ -465,7 +474,8 @@ function injectDownloadButtons() {
                     const sourceTag = media.querySelector('source');
                     if (sourceTag && sourceTag.src &&
                         !sourceTag.src.startsWith('blob:') &&
-                        !sourceTag.src.startsWith('data:')) {
+                        !sourceTag.src.startsWith('data:') &&
+                        !isInternalPage(sourceTag.src)) {
                         callback(sourceTag.src);
                         return;
                     }
