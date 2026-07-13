@@ -287,7 +287,9 @@ class OverlayManager {
             ? el.className.toLowerCase()
             : '';
 
-        const controlHints = ['close', 'dismiss', 'minimize', 'expand', 'fullscreen', 'menu', 'more', 'options', 'share'];
+        const controlHints = ['close', 'dismiss', 'minimize', 'expand', 'fullscreen', 'menu', 'more', 'options', 'share',
+                               'mute', 'unmute', 'volume', 'sound', 'play', 'pause', 'like', 'comment', 'follow',
+                               'audio', 'speaker', 'forward', 'rewind', 'skip', 'next', 'previous', 'seek'];
         const hintText = `${ariaLabel} ${title} ${className}`;
         if (controlHints.some(hint => hintText.includes(hint))) return true;
 

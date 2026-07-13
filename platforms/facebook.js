@@ -4,8 +4,10 @@ window.ToystallerPlatforms['facebook'] = Object.assign({}, window.ToystallerPlat
     name: 'facebook',
     
     getPlatformConfig(path) {
-        if (path.includes('/reel/')) {
-            return { preferredCorners: ['top-left', 'top-right'], padding: 16 };
+        if (path.includes('/reel')) {
+            // Facebook Reels: bottom-right has mute/volume, bottom-left has like/comment
+            // Use top-right as primary, top-left as fallback
+            return { preferredCorners: ['top-right', 'top-left', 'bottom-left', 'bottom-right'], padding: 20 };
         }
         return { preferredCorners: ['top-left', 'top-right', 'bottom-left'], padding: 12 };
     },
