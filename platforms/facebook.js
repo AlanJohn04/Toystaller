@@ -6,8 +6,9 @@ window.ToystallerPlatforms['facebook'] = Object.assign({}, window.ToystallerPlat
     getPlatformConfig(path) {
         if (path.includes('/reel')) {
             // Facebook Reels: bottom-right has mute/volume, bottom-left has like/comment
-            // Use top-right as primary, top-left as fallback
-            return { preferredCorners: ['top-right', 'top-left', 'bottom-left', 'bottom-right'], padding: 20 };
+            // Top-right has native search/share buttons ~50px from top
+            // Use top-right with extra topOffset to sit below FB's native controls
+            return { preferredCorners: ['top-right', 'top-left', 'bottom-left', 'bottom-right'], padding: 14, topOffset: 56 };
         }
         return { preferredCorners: ['top-left', 'top-right', 'bottom-left'], padding: 12 };
     },

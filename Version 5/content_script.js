@@ -36,8 +36,25 @@ window.addEventListener('message', (e) => {
     }
 });
 
+// Safe wrapper for chrome.runtime.sendMessage to prevent
+// "Extension context invalidated" errors after extension reload
+function safeSendMessage(msg, callback) {
+    try {
+        if (!chrome.runtime || !chrome.runtime.id) return;
+        chrome.runtime.sendMessage(msg, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn('Toystaller: extension context invalidated, please reload page.');
+                return;
+            }
+            if (callback) callback(response);
+        });
+    } catch (e) {
+        console.warn('Toystaller: extension context invalidated, please reload page.');
+    }
+}
+
 function triggerDownload(url) {
-    chrome.runtime.sendMessage({ action: 'downloadMedia', url: url }, (response) => {
+    safeSendMessage({ action: 'downloadMedia', url: url }, (response) => {
         if (!response || !response.success) {
             console.error("Download failed or was rejected.");
         }
@@ -226,10 +243,10 @@ function injectDownloadButtons() {
                     e.preventDefault();
                     e.stopPropagation();
                     if (!isVideo) {
-                        chrome.runtime.sendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
                     } else {
                         getMediaUrl((url) => {
-                            chrome.runtime.sendMessage({ action: 'openInNewTab', url: url });
+                            safeSendMessage({ action: 'openInNewTab', url: url });
                         });
                     }
                 });
@@ -277,11 +294,11 @@ function injectDownloadButtons() {
                                 }
                                 
                                 if (!poster) {
-                                    chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: 'img' }, (response) => {
+                                    safeSendMessage({ action: 'getMediaUrls', mediaType: 'img' }, (response) => {
                                         if (response && response.urls && response.urls.length > 0) {
                                             const covers = response.urls.filter(u => u.includes('videocover'));
                                             if (covers.length > 0) {
-                                                chrome.runtime.sendMessage({ action: 'openInNewTab', url: covers[0] });
+                                                safeSendMessage({ action: 'openInNewTab', url: covers[0] });
                                                 return;
                                             }
                                         }
@@ -303,7 +320,7 @@ function injectDownloadButtons() {
                                 resolved = true;
                                 window.removeEventListener('message', handler);
                                 if (e.data.url) {
-                                    chrome.runtime.sendMessage({ action: 'openInNewTab', url: e.data.url });
+                                    safeSendMessage({ action: 'openInNewTab', url: e.data.url });
                                 } else {
                                     alert('No thumbnail image available for this video.');
                                 }
@@ -321,12 +338,12 @@ function injectDownloadButtons() {
                         }
 
                         if (poster) {
-                            chrome.runtime.sendMessage({ action: 'openInNewTab', url: poster });
+                            safeSendMessage({ action: 'openInNewTab', url: poster });
                         } else {
                             alert('No thumbnail image available for this video.');
                         }
                     } else {
-                        chrome.runtime.sendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
                     }
                 });
                 buttons.push(imgBtn);
@@ -483,7 +500,7 @@ function injectDownloadButtons() {
 
                 // Last resort: ask background script for network-intercepted URLs
                 const mediaType = isVideo ? 'video' : 'img';
-                chrome.runtime.sendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
+                safeSendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
                     if (response && response.urls && response.urls.length > 0) {
                         const platform = PlatformManager.getPlatform();
                         let candidates = response.urls;

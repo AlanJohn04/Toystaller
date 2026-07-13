@@ -318,6 +318,7 @@
             }
         }
 
+        // React Fiber crawl
         let current = el;
         for (let i = 0; i < 10 && current; i++) {
             try {
@@ -329,7 +330,93 @@
             } catch (e) {}
             current = current.parentElement;
         }
+
+        // Facebook Relay Data fallback: scan <script> tags for embedded video data
+        // yt-dlp does this via data-sjs regex; we parse all script[type="application/json"] and data-sjs scripts
+        if (isVideo && window.location.hostname.includes('facebook.com')) {
+            const fbUrl = extractFromFacebookRelayData();
+            if (fbUrl) return fbUrl;
+        }
+
         return null;
+    }
+
+    // Facebook-specific: Parse relay data from <script> tags to find progressive video URLs
+    // This mirrors yt-dlp's extract_relay_prefetched_data approach
+    function extractFromFacebookRelayData() {
+        const scripts = document.querySelectorAll('script[type="application/json"][data-sjs], script[data-content-len]');
+        let bestUrl = null;
+        let bestQuality = -1;
+
+        for (const script of scripts) {
+            const text = script.textContent;
+            if (!text || text.length < 100) continue;
+            // Quick check: does this script even contain video data?
+            if (!text.includes('playable_url') && !text.includes('progressive_url')) continue;
+
+            try {
+                const data = JSON.parse(text);
+                scanRelayDataForVideoUrls(data, 0, new Set(), (url, quality) => {
+                    if (quality > bestQuality) {
+                        bestQuality = quality;
+                        bestUrl = url;
+                    }
+                });
+            } catch (e) {}
+
+            // If we found HD, no need to keep looking
+            if (bestQuality >= 2) break;
+        }
+        return bestUrl;
+    }
+
+    function scanRelayDataForVideoUrls(obj, depth, seen, onFound) {
+        if (depth > 15 || !obj || typeof obj !== 'object') return;
+        if (seen.has(obj)) return;
+        seen.add(obj);
+
+        if (Array.isArray(obj)) {
+            for (const item of obj) {
+                scanRelayDataForVideoUrls(item, depth + 1, seen, onFound);
+            }
+            return;
+        }
+
+        // Priority 1: playable_url_quality_hd (HD progressive mp4)
+        if (obj.playable_url_quality_hd && typeof obj.playable_url_quality_hd === 'string') {
+            const url = obj.playable_url_quality_hd;
+            if (url.startsWith('http') && !url.includes('stream_type=dash') && !url.includes('.mpd')) {
+                onFound(url + '#_q=HD_video.mp4', 3);
+            }
+        }
+
+        // Priority 2: playable_url (SD progressive mp4)
+        if (obj.playable_url && typeof obj.playable_url === 'string') {
+            const url = obj.playable_url;
+            if (url.startsWith('http') && !url.includes('stream_type=dash') && !url.includes('.mpd')) {
+                onFound(url + '#_q=SD_video.mp4', 2);
+            }
+        }
+
+        // Priority 3: progressive_urls array from videoDeliveryResponseResult
+        if (Array.isArray(obj.progressive_urls)) {
+            for (const prog of obj.progressive_urls) {
+                if (prog && typeof prog.progressive_url === 'string' && prog.progressive_url.startsWith('http')) {
+                    const quality = (prog.metadata && prog.metadata.quality) || '';
+                    const qScore = quality.toLowerCase() === 'hd' ? 3 : 1;
+                    onFound(prog.progressive_url + `#_q=${quality}_video.mp4`, qScore);
+                }
+            }
+        }
+
+        // Recurse into child objects
+        for (const key of Object.keys(obj)) {
+            if (key === 'return' || key === 'sibling' || key === '_owner' || key === 'parent') continue;
+            const val = obj[key];
+            if (val && typeof val === 'object') {
+                scanRelayDataForVideoUrls(val, depth + 1, seen, onFound);
+            }
+        }
     }
 
     window.addEventListener('message', (e) => {

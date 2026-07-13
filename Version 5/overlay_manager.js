@@ -311,6 +311,8 @@ class OverlayManager {
     }
 
     cornerHasConflict(media, rect, corner, width, height, pad = 12) {
+        const config = this.getPlatformConfig();
+        const topOffset = config.topOffset || 0;
         let x;
         let y;
 
@@ -325,11 +327,11 @@ class OverlayManager {
                 break;
             case 'top-left':
                 x = rect.left + pad + width / 2;
-                y = rect.top + pad + height / 2;
+                y = rect.top + pad + topOffset + height / 2;
                 break;
             case 'top-right':
                 x = rect.right - pad - width / 2;
-                y = rect.top + pad + height / 2;
+                y = rect.top + pad + topOffset + height / 2;
                 break;
             default:
                 return true;
@@ -380,6 +382,7 @@ class OverlayManager {
     applyCornerPosition(rect, container, corner) {
         const config = this.getPlatformConfig();
         const pad = config.padding;
+        const topOffset = config.topOffset || 0;
         const width = container.offsetWidth || 80;
         const height = container.offsetHeight || 36;
 
@@ -393,11 +396,11 @@ class OverlayManager {
                 container.style.left = `${rect.left + pad}px`;
                 break;
             case 'top-left':
-                container.style.top = `${rect.top + pad}px`;
+                container.style.top = `${rect.top + pad + topOffset}px`;
                 container.style.left = `${rect.left + pad}px`;
                 break;
             case 'top-right':
-                container.style.top = `${rect.top + pad}px`;
+                container.style.top = `${rect.top + pad + topOffset}px`;
                 container.style.left = `${rect.right - width - pad}px`;
                 break;
             default:
