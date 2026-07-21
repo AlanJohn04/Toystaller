@@ -36,6 +36,16 @@
         "content_script.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.linkedin.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": ["page_interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "declarative_net_request": {
@@ -49,13 +59,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "page_interceptor.js",
-        "platforms/generic.js",
-        "platforms/instagram.js",
-        "platforms/facebook.js",
-        "platforms/linkedin.js"
-      ],
+      "resources": ["page_interceptor.js"],
       "matches": ["<all_urls>"]
     }
   ],
