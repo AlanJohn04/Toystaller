@@ -172,8 +172,12 @@
         let current = el;
         const platform = getPlatform();
 
-        // 1. First try React Fiber traversal on the clicked element & parents
-        for (let i = 0; i < 15 && current; i++) {
+        if (platform.extractVideoUrlFromDOM) {
+            const domUrl = platform.extractVideoUrlFromDOM(el);
+            if (domUrl) return domUrl;
+        }
+
+        for (let i = 0; i < 12 && current; i++) {
             const key = Object.keys(current).find(k => k.startsWith('__reactProps$') || 
                 k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
             if (key && current[key]) {
@@ -181,12 +185,6 @@
                 if (found) return found;
             }
             current = current.parentElement;
-        }
-
-        // 2. Fallback to Platform DOM / script tag extraction if React Fiber yielded no URL
-        if (platform.extractVideoUrlFromDOM) {
-            const domUrl = platform.extractVideoUrlFromDOM(el);
-            if (domUrl) return domUrl;
         }
 
         return null;

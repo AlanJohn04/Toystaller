@@ -48,43 +48,9 @@ window.ToystallerPlatforms['linkedin'] = Object.assign({}, window.ToystallerPlat
                  lower.includes('//linkedin.com'));
     },
 
-    extractPriorityReactUrl(val, isVideoContext) {
-        if (!isVideoContext || !val || typeof val !== 'object') return null;
-
-        if (Array.isArray(val.progressiveStreams)) {
-            let bestUrl = null;
-            let maxBitrate = -1;
-            for (const stream of val.progressiveStreams) {
-                if (stream) {
-                    const url = stream.streamingUrl || stream.progressiveUrl || stream.url;
-                    if (url && typeof url === 'string' && this.isValidVideo(url)) {
-                        const bitrate = parseInt(stream.bitrate || stream.height || '0', 10);
-                        if (bitrate >= maxBitrate) {
-                            maxBitrate = bitrate;
-                            bestUrl = url;
-                        }
-                    }
-                }
-            }
-            if (bestUrl) return bestUrl + '#_q=progressive_video.mp4';
-        }
-
-        if (typeof val.streamingUrl === 'string' && this.isValidVideo(val.streamingUrl)) {
-            return val.streamingUrl + '#_q=progressive_video.mp4';
-        }
-        if (typeof val.progressiveUrl === 'string' && this.isValidVideo(val.progressiveUrl)) {
-            return val.progressiveUrl + '#_q=progressive_video.mp4';
-        }
-
-        return window.ToystallerPlatforms['generic'].extractPriorityReactUrl(val, isVideoContext);
-    },
-
     extractVideoUrlFromDOM(el) {
-        let videoEl = el.tagName === 'VIDEO' ? el : (el.querySelector ? el.querySelector('video') : null);
-        let searchEl = videoEl || el;
-
-        for (let i = 0; i < 6 && searchEl; i++) {
-            const sourcesData = searchEl.getAttribute && searchEl.getAttribute('data-sources');
+        if (el.tagName === 'VIDEO') {
+            const sourcesData = el.getAttribute('data-sources');
             if (sourcesData) {
                 try {
                     const sources = JSON.parse(sourcesData);
@@ -93,11 +59,11 @@ window.ToystallerPlatforms['linkedin'] = Object.assign({}, window.ToystallerPlat
                         let bestBitrate = -1;
                         for (const src of sources) {
                             if (src && src.src && typeof src.src === 'string' && this.isValidVideo(src.src)) {
+                                if (!src.src.includes('.mp4') || src.src.includes('manifest')) continue;
                                 if (src.type && (src.type.includes('mpegurl') || src.type.includes('dash'))) continue;
-                                if (src.src.includes('.m3u8') || src.src.includes('manifest')) continue;
                                 
-                                const bitrate = parseInt(src['data-bitrate'] || src.bitrate || '0', 10);
-                                if (bitrate >= bestBitrate) {
+                                const bitrate = parseInt(src['data-bitrate'] || '0', 10);
+                                if (bitrate > bestBitrate) {
                                     bestBitrate = bitrate;
                                     best = src.src;
                                 }
@@ -107,7 +73,6 @@ window.ToystallerPlatforms['linkedin'] = Object.assign({}, window.ToystallerPlat
                     }
                 } catch (e) {}
             }
-            searchEl = searchEl.parentElement;
         }
         return null;
     },

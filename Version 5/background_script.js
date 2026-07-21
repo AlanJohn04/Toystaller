@@ -40,10 +40,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const urls = tabMedia && tabMedia[mediaType] ? Array.from(tabMedia[mediaType]) : [];
         sendResponse({ urls: urls });
     } else if (request.action === 'downloadMedia') {
-        chrome.downloads.download({
-            url: request.url,
-            saveAs: true
-        }, (downloadId) => {
+        let targetUrl = request.url;
+        let filenameHint = undefined;
+        if (targetUrl && targetUrl.includes('#_q=')) {
+            const parts = targetUrl.split('#_q=');
+            targetUrl = parts[0];
+            filenameHint = parts[1];
+        } else if (targetUrl && targetUrl.includes('#')) {
+            targetUrl = targetUrl.split('#')[0];
+        }
+
+        const downloadOptions = { url: targetUrl, saveAs: true };
+        if (filenameHint) {
+            downloadOptions.filename = filenameHint;
+        }
+
+        chrome.downloads.download(downloadOptions, (downloadId) => {
             if (chrome.runtime.lastError) {
                 console.error("Download failed:", chrome.runtime.lastError);
                 sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -53,35 +65,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     } else if (request.action === 'openInNewTab') {
-        chrome.tabs.create({ url: request.url });
+        let cleanUrl = request.url ? request.url.split('#')[0] : '';
+        if (cleanUrl) {
+            chrome.tabs.create({ url: cleanUrl });
+        }
         sendResponse({ success: true });
-    } else if (request.action === 'fetchMobileFacebookVideo') {
-        const urlObj = new URL(request.url);
-        // Transform url to m.facebook.com
-        urlObj.hostname = 'm.facebook.com';
-        
-        fetch(urlObj.toString(), {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
-            }
-        })
-        .then(r => r.text())
-        .then(html => {
-            // Find src="https:\/\/video..." or src="https://video..."
-            // It could be heavily escaped or just standard HTML
-            const match = html.match(/src="([^"]+?\.mp4[^"]*?)"/);
-            if (match && match[1]) {
-                const unescaped = match[1].replace(/&amp;/g, '&').replace(/\\\/`/g, '/');
-                sendResponse({ url: unescaped });
-            } else {
-                sendResponse({ url: null });
-            }
-        })
-        .catch(err => {
-            console.error("Facebook mobile fetch error:", err);
-            sendResponse({ url: null });
-        });
-        return true; // async response
     }
 });
 

@@ -255,13 +255,7 @@ function injectDownloadButtons() {
                         safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
                     } else {
                         getMediaUrl((url) => {
-                            const host = window.location.hostname.toLowerCase();
-                            // Trigger direct download instead of new tab to avoid referrer/session blocking for FB/LI
-                            if (host.includes('facebook.com') || host.includes('linkedin.com')) {
-                                safeSendMessage({ action: 'downloadMedia', url: url });
-                            } else {
-                                safeSendMessage({ action: 'openInNewTab', url: url });
-                            }
+                            safeSendMessage({ action: 'openInNewTab', url: url });
                         });
                     }
                 });
@@ -391,18 +385,7 @@ function injectDownloadButtons() {
                         if (e.data.url) {
                             callback(e.data.url);
                         } else {
-                            if (window.location.hostname.includes('facebook.com') && isVideo) {
-                                // Fallback for Facebook: attempt mobile site extraction via background script
-                                safeSendMessage({ action: 'fetchMobileFacebookVideo', url: window.location.href }, (response) => {
-                                    if (response && response.url) {
-                                        callback(response.url);
-                                    } else {
-                                        getMediaUrlFallback(callback, silent);
-                                    }
-                                });
-                            } else {
-                                getMediaUrlFallback(callback, silent);
-                            }
+                            getMediaUrlFallback(callback, silent);
                         }
                     };
                     window.addEventListener('message', handler);
@@ -428,8 +411,35 @@ function injectDownloadButtons() {
                 // Social platform blob: fallback since they use blob: URLs and filename matching is impossible.
                 // Grab the best platform-specific CDN video URL from intercepted URLs.
                 if (isVideo && isBlobSource && pageInterceptedVideoUrls.size > 0) {
-                    const platform = PlatformManager.getPlatform();
-                    const platformVideos = platform.filterBackgroundUrls ? platform.filterBackgroundUrls(Array.from(pageInterceptedVideoUrls), true) : Array.from(pageInterceptedVideoUrls);
+                    let platformVideos = [];
+                    if (host.includes('linkedin.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
+                                return false;
+                            }
+                            // Reject streaming manifests and DASH fragments — only accept progressive mp4
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart')) {
+                                return false;
+                            }
+                            return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playback'))) ||
+                                   lower.includes('.mp4');
+                        });
+                    } else if (host.includes('instagram.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+                            return lower.includes('cdninstagram.com') || lower.includes('.mp4');
+                        });
+                    } else if (host.includes('facebook.com')) {
+                        platformVideos = Array.from(pageInterceptedVideoUrls).filter(u => {
+                            const lower = u.toLowerCase();
+                            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+                            // Reject streaming manifests and DASH fragments
+                            if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart')) return false;
+                            return lower.includes('fbcdn.net') || lower.includes('.mp4');
+                        });
+                    }
 
                     if (platformVideos.length > 0) {
                         const best = pickBestVideoUrl(platformVideos);
