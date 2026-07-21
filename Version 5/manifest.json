@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Toystaller",
+  "version": "5.0",
+  "description": "Smart media downloader with shadow DOM UI and stealth injection.",
+  "icons": {
+    "16": "Toystaller_logo.png",
+    "48": "Toystaller_logo.png",
+    "128": "Toystaller_logo.png"
+  },
+  "permissions": [
+    "webRequest",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background_script.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "platforms/generic.js",
+        "platforms/instagram.js",
+        "platforms/facebook.js",
+        "platforms/linkedin.js",
+        "overlay_manager.js",
+        "content_script.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.instagram.com/*",
+        "*://*.linkedin.com/*",
+        "*://*.facebook.com/*"
+      ],
+      "js": [
+        "platforms/generic.js",
+        "platforms/instagram.js",
+        "platforms/facebook.js",
+        "platforms/linkedin.js",
+        "page_interceptor.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["page_interceptor.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_title": "Toystaller Downloader",
+    "default_icon": "Toystaller_logo.png"
+  }
+}
