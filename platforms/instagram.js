@@ -98,5 +98,18 @@ window.ToystallerPlatforms['instagram'] = Object.assign({}, window.ToystallerPla
         if (minSide < 180) return 0.85;
         if (minSide < 280) return 0.95;
         return 1;
+    },
+
+    extractVideoUrlFromDOM(el) {
+        // Instagram purely uses React Fiber extraction, no custom DOM parsing
+        return null;
+    },
+
+    filterBackgroundUrls(candidates, isVideo) {
+        return candidates.filter(u => {
+            const lower = u.toLowerCase();
+            if (lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
+            return lower.includes('cdninstagram.com') || lower.includes('.mp4');
+        });
     }
 });

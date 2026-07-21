@@ -113,6 +113,84 @@ window.ToystallerPlatforms['facebook'] = Object.assign({}, window.ToystallerPlat
         return window.ToystallerPlatforms['generic'].extractPriorityReactUrl(val, isVideoContext);
     },
 
+    isValidVideo(url) {
+        if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
+        if (url.includes('stream_type=dash') || url.includes('.mpd')) return false;
+        const lower = url.toLowerCase();
+        return !(lower.includes('//www.facebook.com') || 
+                 lower.includes('//facebook.com') ||
+                 lower.includes('//www.instagram.com') || 
+                 lower.includes('//instagram.com') ||
+                 lower.includes('//www.linkedin.com') || 
+                 lower.includes('//linkedin.com'));
+    },
+
+    extractVideoUrlFromDOM(el) {
+        const scripts = document.querySelectorAll('script');
+        let bestUrl = null;
+        let bestQuality = -1;
+        const seen = new Set();
+
+        const checkAndSet = (url, q) => {
+            if (this.isValidVideo(url) && q > bestQuality) {
+                bestQuality = q;
+                bestUrl = url;
+            }
+        };
+
+        const scanRelayDataForVideoUrls = (obj, depth) => {
+            if (depth > 15 || !obj || typeof obj !== 'object') return;
+            if (seen.has(obj)) return;
+            seen.add(obj);
+
+            if (Array.isArray(obj)) {
+                for (const item of obj) scanRelayDataForVideoUrls(item, depth + 1);
+                return;
+            }
+
+            if (obj.playable_url_quality_hd && typeof obj.playable_url_quality_hd === 'string') {
+                checkAndSet(obj.playable_url_quality_hd + '#_q=HD_video.mp4', 3);
+            }
+            if (obj.playable_url && typeof obj.playable_url === 'string') {
+                checkAndSet(obj.playable_url + '#_q=SD_video.mp4', 2);
+            }
+            if (Array.isArray(obj.progressive_urls)) {
+                for (const prog of obj.progressive_urls) {
+                    if (prog && typeof prog.progressive_url === 'string') {
+                        const quality = (prog.metadata && prog.metadata.quality) || '';
+                        checkAndSet(prog.progressive_url + `#_q=${quality}_video.mp4`, quality.toLowerCase() === 'hd' ? 3 : 1);
+                    }
+                }
+            }
+            if (obj.progressive_url && typeof obj.progressive_url === 'string') {
+                checkAndSet(obj.progressive_url + '#_q=progressive_video.mp4', 1);
+            }
+
+            for (const key of Object.keys(obj)) {
+                if (key === 'return' || key === 'sibling' || key === '_owner' || key === 'parent') continue;
+                if (obj[key] && typeof obj[key] === 'object') scanRelayDataForVideoUrls(obj[key], depth + 1);
+            }
+        };
+
+        for (const script of scripts) {
+            const text = script.textContent;
+            if (!text || text.length < 100) continue;
+            if (!text.includes('playable_url') && !text.includes('progressive_url')) continue;
+
+            try {
+                scanRelayDataForVideoUrls(JSON.parse(text), 0);
+            } catch (e) {
+                try {
+                    const hdMatch = text.match(/"playable_url_quality_hd"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+                    if (hdMatch && hdMatch[1]) checkAndSet(JSON.parse('"' + hdMatch[1] + '"') + '#_q=HD_video.mp4', 3);
+                    const sdMatch = text.match(/"playable_url"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+                    if (sdMatch && sdMatch[1]) checkAndSet(JSON.parse('"' + sdMatch[1] + '"') + '#_q=SD_video.mp4', 2);
+                } catch (err) {}
+            }
+        }
+        return bestUrl;
+    },
+
     // Network Fallback Filtering
     filterBackgroundUrls(candidates, isVideo) {
         return candidates.filter(u => {

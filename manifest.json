@@ -43,7 +43,13 @@
         "*://*.linkedin.com/*",
         "*://*.facebook.com/*"
       ],
-      "js": ["page_interceptor.js"],
+      "js": [
+        "platforms/generic.js",
+        "platforms/instagram.js",
+        "platforms/facebook.js",
+        "platforms/linkedin.js",
+        "page_interceptor.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     }
