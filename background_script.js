@@ -40,10 +40,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const urls = tabMedia && tabMedia[mediaType] ? Array.from(tabMedia[mediaType]) : [];
         sendResponse({ urls: urls });
     } else if (request.action === 'downloadMedia') {
-        chrome.downloads.download({
-            url: request.url,
-            saveAs: true
-        }, (downloadId) => {
+        let targetUrl = request.url;
+        let filenameHint = undefined;
+        if (targetUrl && targetUrl.includes('#_q=')) {
+            const parts = targetUrl.split('#_q=');
+            targetUrl = parts[0];
+            filenameHint = parts[1];
+        } else if (targetUrl && targetUrl.includes('#')) {
+            targetUrl = targetUrl.split('#')[0];
+        }
+
+        const downloadOptions = { url: targetUrl, saveAs: true };
+        if (filenameHint) {
+            downloadOptions.filename = filenameHint;
+        }
+
+        chrome.downloads.download(downloadOptions, (downloadId) => {
             if (chrome.runtime.lastError) {
                 console.error("Download failed:", chrome.runtime.lastError);
                 sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -53,7 +65,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     } else if (request.action === 'openInNewTab') {
-        chrome.tabs.create({ url: request.url });
+        let cleanUrl = request.url ? request.url.split('#')[0] : '';
+        if (cleanUrl) {
+            chrome.tabs.create({ url: cleanUrl });
+        }
         sendResponse({ success: true });
     }
 });

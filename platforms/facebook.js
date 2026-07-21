@@ -103,12 +103,45 @@ window.ToystallerPlatforms['facebook'] = Object.assign({}, window.ToystallerPlat
     },
 
     extractPriorityReactUrl(val, isVideoContext) {
-        if (isVideoContext && val.playable_url_quality_hd && typeof val.playable_url_quality_hd === 'string' && !val.playable_url_quality_hd.includes('stream_type=dash')) {
+        if (!isVideoContext || !val || typeof val !== 'object') return null;
+
+        if (val.playable_url_quality_hd && typeof val.playable_url_quality_hd === 'string' && !val.playable_url_quality_hd.includes('stream_type=dash')) {
             return val.playable_url_quality_hd + '#_q=HD_video.mp4';
         }
-        if (isVideoContext && val.playable_url && typeof val.playable_url === 'string' && !val.playable_url.includes('stream_type=dash')) {
+        if (val.browser_native_hd_url && typeof val.browser_native_hd_url === 'string') {
+            return val.browser_native_hd_url + '#_q=HD_video.mp4';
+        }
+        if (val.hd_src && typeof val.hd_src === 'string') {
+            return val.hd_src + '#_q=HD_video.mp4';
+        }
+
+        if (val.playable_url && typeof val.playable_url === 'string' && !val.playable_url.includes('stream_type=dash')) {
             return val.playable_url + '#_q=SD_video.mp4';
         }
+        if (val.browser_native_sd_url && typeof val.browser_native_sd_url === 'string') {
+            return val.browser_native_sd_url + '#_q=SD_video.mp4';
+        }
+        if (val.sd_src && typeof val.sd_src === 'string') {
+            return val.sd_src + '#_q=SD_video.mp4';
+        }
+
+        if (Array.isArray(val.progressive_urls)) {
+            let bestProgUrl = null;
+            let maxQuality = -1;
+            for (const prog of val.progressive_urls) {
+                if (prog && typeof prog.progressive_url === 'string') {
+                    const q = (prog.metadata && prog.metadata.quality && prog.metadata.quality.toLowerCase() === 'hd') ? 2 : 1;
+                    if (q > maxQuality) {
+                        maxQuality = q;
+                        bestProgUrl = prog.progressive_url;
+                    }
+                }
+            }
+            if (bestProgUrl) {
+                return bestProgUrl + '#_q=progressive_video.mp4';
+            }
+        }
+
         return window.ToystallerPlatforms['generic'].extractPriorityReactUrl(val, isVideoContext);
     },
 

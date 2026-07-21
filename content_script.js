@@ -255,7 +255,10 @@ function injectDownloadButtons() {
                         safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
                     } else {
                         getMediaUrl((url) => {
-                            safeSendMessage({ action: 'openInNewTab', url: url });
+                            if (url) {
+                                const cleanUrl = url.split('#')[0];
+                                safeSendMessage({ action: 'openInNewTab', url: cleanUrl });
+                            }
                         });
                     }
                 });
