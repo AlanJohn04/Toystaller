@@ -407,10 +407,11 @@ function injectDownloadButtons() {
                 const isBlobSource = currentSrc.startsWith('blob:') || currentSrc.startsWith('data:');
                 const host = window.location.hostname.toLowerCase();
 
-                // Social platform blob: fallback since they use blob: URLs and filename matching is impossible.
+                const platform = PlatformManager.getPlatform();
+                const isKnownPlatform = platform.name !== 'fallback' && platform.name !== 'generic';
+
                 // Grab the best platform-specific CDN video URL from intercepted URLs.
-                if (isVideo && isBlobSource && pageInterceptedVideoUrls.size > 0) {
-                    const platform = PlatformManager.getPlatform();
+                if (isVideo && (isBlobSource || isKnownPlatform) && pageInterceptedVideoUrls.size > 0) {
                     const platformVideos = platform.filterBackgroundUrls ? platform.filterBackgroundUrls(Array.from(pageInterceptedVideoUrls), true) : Array.from(pageInterceptedVideoUrls);
 
                     if (platformVideos.length > 0) {

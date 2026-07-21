@@ -88,6 +88,7 @@ window.ToystallerPlatforms['instagram'] = Object.assign({}, window.ToystallerPla
 
     looksLikeReactVideo(val, key) {
         const lowerVal = val.toLowerCase();
+        if (lowerVal.includes('.mpd') || lowerVal.includes('.m3u8') || lowerVal.includes('dash')) return false;
         return (lowerVal.includes('cdninstagram.com') && lowerVal.includes('video')) || lowerVal.includes('.mp4');
     },
 
