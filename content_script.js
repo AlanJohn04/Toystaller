@@ -235,10 +235,8 @@ function injectDownloadButtons() {
                 openBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
                 openBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
 
-                // For video elements, hide the blue button until we confirm a valid URL exists
-                if (isVideo) {
-                    openBtn.style.display = 'none';
-                }
+                // For video elements, the blue button will resolve the URL on click
+                // (We no longer hide it initially)
 
                 openBtn.addEventListener('mouseenter', () => {
                     openBtn.style.opacity = '1';
@@ -264,13 +262,14 @@ function injectDownloadButtons() {
                 });
                 buttons.push(openBtn);
 
-                // Red Button: Open Thumbnail/Image in new tab (same arrow icon, red hover)
-                const imgBtn = document.createElement('button');
-                imgBtn.className = 'magic-img-btn';
-                imgBtn.title = isVideo ? 'Open thumbnail in new tab' : 'Open image in new tab';
-                imgBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
-                imgBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
-                imgBtn.addEventListener('mouseenter', () => {
+                // Red Button: Open Thumbnail in new tab (only for videos)
+                if (isVideo) {
+                    const imgBtn = document.createElement('button');
+                    imgBtn.className = 'magic-img-btn';
+                    imgBtn.title = 'Open thumbnail in new tab';
+                    imgBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+                    imgBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
+                    imgBtn.addEventListener('mouseenter', () => {
                     imgBtn.style.opacity = '1';
                     imgBtn.style.backgroundColor = 'rgba(231, 76, 60, 0.95)';
                 });
@@ -278,11 +277,10 @@ function injectDownloadButtons() {
                     imgBtn.style.opacity = '0.55';
                     imgBtn.style.backgroundColor = 'rgba(30,30,30,0.75)';
                 });
-                imgBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const host = window.location.hostname.toLowerCase();
-                    if (isVideo) {
+                    imgBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const host = window.location.hostname.toLowerCase();
                         let poster = media.getAttribute('poster');
                         
                         // Fallback 1: Look for a nearby image tag (very common in Instagram/Facebook custom players)
@@ -354,11 +352,9 @@ function injectDownloadButtons() {
                         } else {
                             alert('No thumbnail image available for this video.');
                         }
-                    } else {
-                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
-                    }
-                });
-                buttons.push(imgBtn);
+                    });
+                    buttons.push(imgBtn);
+                }
 
                 return buttons;
             };
